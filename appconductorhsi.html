@@ -1,0 +1,2636 @@
+<!DOCTYPE html>
+<html lang="es-AR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>CheckFlota · App del Conductor v5</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+<script src="https://unpkg.com/jsqr@1.4.0/dist/jsQR.js"></script>
+<style>
+  :root{
+    --ink:#16211c; --panel:#ffffff; --bg:#eef1ed; --line:#d5dcd4;
+    --green:#1f7a4d; --green-dark:#155c39; --amber:#f5b52e; --amber-soft:#fdf3d7;
+    --red:#c0392b; --muted:#6b7a70; --blue:#2563eb; --nav-h:64px;
+    --dark:#12251b; --dark2:#1a3325; --hero2:#1f4632; --hero3:#2b6647;
+    --sobre-oscuro:#a8c6b4;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:"Segoe UI",system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--ink);-webkit-text-size-adjust:100%}
+  .mono{font-variant-numeric:tabular-nums;font-family:"Consolas","Roboto Mono",monospace}
+  /* ---------- LOGIN / CONFIG ---------- */
+  .login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;
+    background:linear-gradient(160deg,var(--dark) 0%,var(--hero2) 60%,var(--hero3) 100%);padding:20px}
+  .login-card{background:var(--panel);border-radius:16px;width:100%;max-width:400px;
+    padding:34px 30px;box-shadow:0 18px 50px rgba(0,0,0,.35)}
+  .brand{display:flex;align-items:center;gap:12px;margin-bottom:6px}
+  .brand-badge{width:46px;height:46px;border-radius:12px;background:var(--green);color:#fff;
+    display:flex;align-items:center;justify-content:center;font-weight:800;font-size:20px;letter-spacing:-1px}
+  .brand h1{font-size:21px;letter-spacing:-.3px}
+  .brand small{display:block;color:var(--muted);font-weight:500;font-size:12px}
+  .login-card label{display:block;font-size:12px;font-weight:700;color:var(--muted);
+    text-transform:uppercase;letter-spacing:.6px;margin:18px 0 6px}
+  .login-card input{width:100%;padding:12px 14px;border:1.5px solid var(--line);border-radius:10px;
+    font-size:16px;outline:none;transition:border .15s}
+  .login-card input:focus{border-color:var(--green)}
+  .btn{width:100%;margin-top:24px;padding:13px;border:none;border-radius:10px;background:var(--green);
+    color:#fff;font-size:16px;font-weight:700;cursor:pointer;transition:background .15s}
+  .btn:hover{background:var(--green-dark)}
+  .btn:disabled{opacity:.5;cursor:default}
+  .btn.sec{background:#fff;color:var(--green-dark);border:1.5px solid var(--green)}
+  .btn.sec:hover{background:#e7f4ec}
+  .login-error{margin-top:14px;color:var(--red);font-size:14px;text-align:center}
+  .login-hint{margin-top:20px;padding:10px 12px;background:var(--amber-soft);
+    border:1px dashed var(--amber);border-radius:8px;font-size:12px;color:#7a5b10}
+  /* ---------- SHELL ---------- */
+  .topbar{background:var(--dark);color:#fff;padding:12px 16px;display:flex;align-items:center;
+    justify-content:space-between;position:sticky;top:0;z-index:20;gap:10px}
+  .topbar .tt{display:flex;align-items:center;gap:10px;min-width:0}
+  .topbar .mini-badge{width:34px;height:34px;border-radius:9px;background:var(--green);color:#fff;
+    display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;flex-shrink:0}
+  .topbar .who{font-size:11.5px;color:var(--sobre-oscuro);min-width:0}
+  .topbar .who b{color:#fff;display:block;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .topbar .who .emp{color:var(--amber);font-weight:700}
+  .link-btn{background:none;border:1px solid #3e6a52;color:#cfe6d8;border-radius:8px;
+    padding:6px 12px;font-size:13px;cursor:pointer;white-space:nowrap}
+  .back-row{display:flex;align-items:center;gap:8px;padding:12px 14px 0;max-width:880px;margin:0 auto}
+  .back-btn{border:1px solid var(--line);background:#fff;border-radius:9px;padding:7px 14px;
+    font-size:14px;font-weight:700;color:var(--green-dark);cursor:pointer}
+  .screen-title{font-size:16px;font-weight:800;color:var(--ink)}
+  .container{max-width:880px;margin:0 auto;padding:16px 14px calc(var(--nav-h) + 96px)}
+  /* bottom nav */
+  .bottomnav{position:fixed;bottom:0;left:0;right:0;height:var(--nav-h);background:var(--dark);
+    display:flex;z-index:30;box-shadow:0 -6px 20px rgba(0,0,0,.25);
+    padding-bottom:env(safe-area-inset-bottom)}
+  .bottomnav button{flex:1;background:none;border:none;color:#7fa38d;font-size:11px;font-weight:700;
+    cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px}
+  .bottomnav button .ic{font-size:21px;line-height:1}
+  .bottomnav button.act{color:var(--amber)}
+  /* ---------- HOME ---------- */
+  .hero{background:linear-gradient(150deg,var(--dark),var(--hero2));border-radius:14px;color:#fff;
+    padding:18px 16px;margin-bottom:16px}
+  .hero .emp{color:var(--amber);font-weight:800;font-size:12px;letter-spacing:.8px;text-transform:uppercase}
+  .hero h3{font-size:19px;margin:4px 0 2px}
+  .hero p{font-size:13px;color:var(--sobre-oscuro)}
+  .hero .lic{margin-top:10px}
+  .tiles{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .tile{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px 14px;
+    cursor:pointer;text-align:left;transition:transform .06s, box-shadow .12s;display:block;width:100%}
+  .tile:active{transform:scale(.97)}
+  .tile .ic{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;
+    font-size:22px;margin-bottom:10px}
+  .tile b{display:block;font-size:14.5px;margin-bottom:3px}
+  .tile span{font-size:12px;color:var(--muted);line-height:1.35;display:block}
+  .ic.g{background:#e7f4ec} .ic.a{background:var(--amber-soft)} .ic.r{background:#fdecea} .ic.b{background:#e8eefb}
+  /* ---------- CARDS / FORM ---------- */
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px 16px;margin-bottom:16px}
+  .card h2{font-size:15px;text-transform:uppercase;letter-spacing:.8px;color:var(--green-dark);
+    margin-bottom:14px;display:flex;align-items:center;gap:8px}
+  .card h2::before{content:"";width:8px;height:8px;border-radius:2px;background:var(--amber)}
+  .grid{display:grid;gap:12px}
+  .grid.c2{grid-template-columns:1fr 1fr}
+  .grid.c3{grid-template-columns:1fr 1fr 1fr}
+  @media(max-width:560px){.grid.c2,.grid.c3{grid-template-columns:1fr}}
+  .field label{display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:5px}
+  .field input,.field select,.field textarea{width:100%;padding:10px 12px;border:1.5px solid var(--line);
+    border-radius:8px;font-size:15px;background:#fff;outline:none;font-family:inherit}
+  .field input:focus,.field select:focus,.field textarea:focus{border-color:var(--green)}
+  .field input[readonly]{background:#f4f6f4;color:var(--muted)}
+  .field textarea{min-height:80px;resize:vertical}
+  .kms-total{background:var(--dark);color:var(--amber);border-radius:8px;padding:10px 12px;
+    font-size:20px;font-weight:800;text-align:center}
+  .kms-total small{display:block;color:var(--sobre-oscuro);font-size:11px;font-weight:600;letter-spacing:.6px}
+  .kms-alert{color:var(--red);font-size:13px;margin-top:6px;font-weight:600}
+  .toggle{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .toggle button{padding:12px;border-radius:9px;border:2px solid var(--line);background:#fff;
+    font-size:14px;font-weight:700;cursor:pointer;color:var(--muted)}
+  .toggle button.on-nov,.toggle button.on-ok{border-color:var(--green-dark);background:var(--green);color:#fff}
+  .chk-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+  @media(max-width:640px){.chk-grid{grid-template-columns:1fr}}
+  .chk{display:flex;align-items:flex-start;gap:10px;padding:10px 11px;border-radius:8px;
+    border:1.5px solid var(--line);cursor:pointer;font-size:13.5px;user-select:none;background:#fff;line-height:1.3}
+  .chk input{margin-top:2px;width:17px;height:17px;accent-color:#c0392b;flex-shrink:0}
+  .chk.marked{border-color:var(--red);background:#fdecea}
+  .chk .num{font-weight:800;color:var(--muted);margin-right:2px}
+  .chk.marked .num{color:var(--red)}
+  .chk-help{font-size:12.5px;color:var(--muted);margin-bottom:10px}
+  .sector{margin-bottom:12px}
+  .sector label{display:block;font-size:12px;font-weight:800;letter-spacing:.5px;color:var(--ink);
+    margin-bottom:5px;text-transform:uppercase}
+  .sector textarea{width:100%;min-height:52px;padding:10px 12px;border:1.5px solid var(--amber);
+    background:var(--amber-soft);border-radius:8px;font-size:14px;resize:vertical;font-family:inherit;outline:none}
+  .sector textarea:focus{border-color:#d99a10;background:#fff}
+  /* adjuntos */
+  .adj-btns{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px}
+  @media(max-width:560px){.adj-btns{grid-template-columns:1fr}}
+  .adj-btn{padding:11px 8px;border-radius:9px;border:1.5px dashed var(--green);background:#f2f8f4;
+    color:var(--green-dark);font-size:13px;font-weight:700;cursor:pointer;text-align:center}
+  .adj-btn:active{background:#e7f4ec}
+  .adj-item{display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-radius:8px;
+    padding:8px 10px;margin-bottom:6px;font-size:13px}
+  .adj-item img{width:44px;height:44px;object-fit:cover;border-radius:6px;flex-shrink:0}
+  .adj-item .ico{width:44px;height:44px;border-radius:6px;background:#e7f4ec;display:flex;
+    align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+  .adj-item .inf{flex:1;min-width:0}
+  .adj-item .inf b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+  .adj-est{font-size:11.5px;font-weight:700}
+  .adj-est.ok{color:var(--green-dark)} .adj-est.sub{color:var(--blue)} .adj-est.err{color:var(--red)}
+  .adj-x{border:none;background:none;color:var(--red);font-size:18px;cursor:pointer;padding:4px}
+  .savebar{position:fixed;bottom:var(--nav-h);left:0;right:0;background:#fff;border-top:1px solid var(--line);
+    padding:10px 14px;display:flex;gap:10px;justify-content:center;z-index:20;box-shadow:0 -6px 20px rgba(0,0,0,.06)}
+  .savebar .btn{max-width:420px;margin-top:0}
+  .toast{position:fixed;top:70px;left:50%;transform:translateX(-50%);background:var(--green-dark);
+    color:#fff;padding:12px 22px;border-radius:9px;font-weight:700;box-shadow:0 10px 30px rgba(0,0,0,.3);
+    z-index:50;font-size:14px;max-width:92vw;text-align:center}
+  .toast.err{background:var(--red)}
+  .hist-item{border:1px solid var(--line);border-radius:9px;padding:12px;margin-bottom:8px;font-size:13.5px}
+  .hist-item b{color:var(--green-dark)}
+  .tag{display:inline-block;padding:2px 9px;border-radius:20px;font-size:11.5px;font-weight:700;margin-left:6px}
+  .tag.nov{background:#fdecea;color:var(--red)}
+  .tag.ok{background:#e7f4ec;color:var(--green-dark)}
+  .empty{color:var(--muted);font-size:14px;text-align:center;padding:14px}
+  /* vencimientos */
+  .venc-card{border:1.5px solid var(--line);border-radius:10px;padding:14px;margin-bottom:10px;
+    display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .venc-card .nom{font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.4px}
+  .venc-card .fec{font-size:13px;color:var(--muted);margin-top:3px}
+  .venc-chip{padding:6px 13px;border-radius:20px;font-size:13px;font-weight:800;white-space:nowrap}
+  .venc-chip.ok{background:#e7f4ec;color:var(--green-dark)}
+  .venc-chip.pronto{background:var(--amber-soft);color:#8a6410}
+  .venc-chip.vencido{background:#fdecea;color:var(--red)}
+  .venc-chip.na{background:#eef1ed;color:var(--muted)}
+  .venc-chip.mini{font-size:11.5px;padding:4px 10px}
+  .unidad-head{background:var(--dark);color:#fff;border-radius:10px;padding:14px;margin-bottom:14px}
+  .unidad-head b{font-size:19px;color:var(--amber)}
+  .unidad-head span{display:block;font-size:13px;color:var(--sobre-oscuro);margin-top:2px}
+  /* QR print */
+  .qr-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px}
+  .qr-item{border:1.5px solid var(--line);border-radius:10px;padding:14px;text-align:center;background:#fff}
+  .qr-item .qrbox{display:flex;justify-content:center;margin-bottom:8px}
+  .qr-item b{display:block;font-size:16px}
+  .qr-item small{color:var(--muted);font-size:12px}
+  @media print{
+    body *{visibility:hidden}
+    .qr-print, .qr-print *{visibility:visible}
+    .qr-print{position:absolute;left:0;top:0;width:100%}
+    .qr-grid{grid-template-columns:repeat(3,1fr)}
+  }
+  .sync-note{font-size:12px;color:var(--muted);text-align:center;margin-bottom:10px}
+  .offline-band{background:#fdecea;color:var(--red);font-size:12.5px;font-weight:700;
+    text-align:center;padding:7px 10px}
+  /* ---------- v3: estilo app de banco ---------- */
+  .hero3{background:linear-gradient(160deg,var(--dark) 0%,var(--hero2) 100%);
+    padding:18px 16px 54px;color:#fff}
+  .hero3 .saludo{font-size:20px;font-weight:800;display:flex;align-items:center;gap:10px}
+  .hero3 .sub{font-size:12.5px;color:var(--sobre-oscuro);margin-top:2px}
+  .tarjeta-principal{background:#fff;border-radius:16px;margin:-38px 14px 14px;
+    padding:16px 14px 14px;box-shadow:0 10px 30px rgba(0,0,0,.12);position:relative;z-index:2}
+  .tarjeta-principal .fila-info{display:flex;justify-content:space-between;align-items:center;
+    gap:8px;margin-bottom:12px;flex-wrap:wrap}
+  .tarjeta-principal .dato b{font-size:16px;display:block}
+  .tarjeta-principal .dato span{font-size:11.5px;color:var(--muted);text-transform:uppercase;
+    letter-spacing:.5px;font-weight:700}
+  .acciones{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+  .accion{border:none;background:#f2f6f3;border-radius:12px;padding:12px 4px 10px;cursor:pointer;
+    display:flex;flex-direction:column;align-items:center;gap:6px;transition:transform .06s}
+  .accion:active{transform:scale(.95)}
+  .accion .ico{font-size:22px;line-height:1}
+  .accion b{font-size:11px;color:var(--green-dark);font-weight:700;line-height:1.15;text-align:center}
+  .seccion{margin:0 14px 14px}
+  .seccion .cabecera{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px}
+  .seccion .cabecera h3{font-size:15px;font-weight:800}
+  .seccion .cabecera a{font-size:13px;color:var(--green);font-weight:700;cursor:pointer;text-decoration:none}
+  .item-lista{background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px;
+    margin-bottom:8px;font-size:13.5px}
+  .item-lista .arriba{display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap}
+  .item-lista b{color:var(--ink)}
+  .item-lista .det{color:var(--muted);margin-top:4px;line-height:1.4}
+  /* pasos de seguimiento */
+  .pasos{display:flex;align-items:center;gap:0;margin:10px 0 4px}
+  .paso{display:flex;flex-direction:column;align-items:center;flex:1;position:relative}
+  .paso .pto{width:22px;height:22px;border-radius:50%;background:#e2e8e3;color:#8aa192;
+    display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;z-index:2}
+  .paso.hecho .pto{background:var(--green);color:#fff}
+  .paso.actual .pto{background:var(--amber);color:#3d2f05;box-shadow:0 0 0 4px var(--amber-soft)}
+  .paso small{font-size:10.5px;color:var(--muted);margin-top:4px;font-weight:700}
+  .paso.hecho small,.paso.actual small{color:var(--ink)}
+  .paso::before{content:"";position:absolute;top:11px;left:-50%;width:100%;height:3px;background:#e2e8e3;z-index:1}
+  .paso:first-child::before{display:none}
+  .paso.hecho::before{background:var(--green)}
+  .paso.actual::before{background:var(--green)}
+  .coment{background:#f6f8f6;border-radius:8px;padding:8px 10px;margin-top:6px;font-size:12.5px}
+  .coment .f{color:var(--muted);font-size:11px;margin-bottom:2px}
+  /* estados chips */
+  .chip-est{display:inline-block;padding:3px 11px;border-radius:20px;font-size:11.5px;font-weight:800}
+  .chip-est.pendiente{background:var(--amber-soft);color:#8a6410}
+  .chip-est.aprobado,.chip-est.en_progreso,.chip-est.en_proceso,.chip-est.en_curso{background:#e3ecfc;color:#1d4fa8}
+  .chip-est.entregado,.chip-est.completado,.chip-est.hecho{background:#e7f4ec;color:var(--green-dark)}
+  .chip-est.rechazado,.chip-est.cancelado{background:#fdecea;color:var(--red)}
+  .chip-est.programado{background:#efe9fb;color:#6b3fc4}
+  .chip-est.solicitado{background:var(--amber-soft);color:#8a6410}
+  .chip-est.preparado{background:#e3ecfc;color:#1d4fa8}
+  .chip-est.enviado{background:#e0f2f7;color:#0e6f8a}
+  .chip-est.recibido{background:#e7f4ec;color:var(--green-dark)}
+  .pasos.mini .pto{width:18px;height:18px;font-size:10px}
+  .pasos.mini small{font-size:9.5px}
+  .pasos.mini .paso::before{top:9px}
+  /* pedidos: contador de insumos */
+  .insumo{display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-radius:10px;
+    padding:10px 12px;margin-bottom:7px;background:#fff}
+  .insumo .nom{flex:1;font-size:14px;font-weight:600}
+  .insumo .nom small{display:block;color:var(--muted);font-size:11.5px;font-weight:500}
+  .insumo .cont{display:flex;align-items:center;gap:8px}
+  .insumo .cont button{width:32px;height:32px;border-radius:9px;border:1.5px solid var(--line);
+    background:#fff;font-size:18px;font-weight:700;cursor:pointer;color:var(--green-dark)}
+  .insumo .cont button:active{background:#e7f4ec}
+  .insumo .cont .n{min-width:22px;text-align:center;font-weight:800;font-size:15px}
+  .insumo.con{border-color:var(--green);background:#f2f8f4}
+  /* bottom nav con QR central */
+  .bottomnav{align-items:stretch}
+  .nav-qr{position:relative;flex:1;display:flex;align-items:center;justify-content:center}
+  .nav-qr button{position:absolute;top:-24px;width:58px;height:58px;border-radius:50%;
+    background:var(--amber);border:4px solid var(--bg);font-size:24px;cursor:pointer;
+    box-shadow:0 6px 16px rgba(0,0,0,.3);display:flex;align-items:center;justify-content:center}
+  .nav-qr button:active{transform:scale(.94)}
+  .nav-qr small{position:absolute;bottom:6px;font-size:10.5px;font-weight:700;color:#7fa38d}
+  /* chapa patente estilo Mercosur */
+  .chapa{display:inline-block;background:#fff;border:2.5px solid #111;border-radius:7px;
+    overflow:hidden;box-shadow:0 2px 6px rgba(0,0,0,.25);min-width:150px}
+  .chapa .banda{background:#1746a0;color:#fff;font-size:8.5px;font-weight:700;letter-spacing:2.5px;
+    text-align:center;padding:2.5px 6px;text-transform:uppercase}
+  .chapa .nro{font-family:"Arial Narrow","Roboto Condensed",Arial,sans-serif;font-weight:800;
+    font-size:26px;letter-spacing:3px;color:#111;text-align:center;padding:3px 12px 5px;white-space:nowrap}
+  .chapa.grande .nro{font-size:32px}
+  /* veredicto de circulación */
+  .veredicto{border-radius:10px;padding:13px 14px;margin-bottom:12px;font-weight:800;font-size:15px;
+    display:flex;align-items:center;gap:10px}
+  .veredicto small{display:block;font-weight:600;font-size:12px;margin-top:2px}
+  .veredicto.ok{background:#e7f4ec;color:var(--green-dark);border:1.5px solid var(--green)}
+  .veredicto.mal{background:#fdecea;color:var(--red);border:1.5px solid var(--red)}
+  .veredicto.duda{background:var(--amber-soft);color:#8a6410;border:1.5px solid var(--amber)}
+  /* contactos de emergencia */
+  .contactos-fondo{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:60;
+    display:flex;align-items:flex-end;justify-content:center}
+  .contactos-panel{background:#fff;border-radius:18px 18px 0 0;width:100%;max-width:520px;
+    padding:18px 16px calc(18px + env(safe-area-inset-bottom));box-shadow:0 -10px 40px rgba(0,0,0,.35)}
+  .contactos-panel h3{font-size:16px;font-weight:800;margin-bottom:12px;text-align:center}
+  .contacto-card{border-radius:14px;padding:14px;margin-bottom:12px;border:2px solid var(--line)}
+  .contacto-card.asesor{border-color:var(--green);background:#f2f8f4}
+  .contacto-card.emergencia{border-color:var(--red);background:#fdecea}
+  .contacto-card .rol{font-size:11.5px;font-weight:800;text-transform:uppercase;letter-spacing:.6px}
+  .contacto-card.asesor .rol{color:var(--green-dark)}
+  .contacto-card.emergencia .rol{color:var(--red)}
+  .contacto-card .nom{font-size:17px;font-weight:800;margin:3px 0 10px}
+  .contacto-botones{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .contacto-botones a{display:flex;align-items:center;justify-content:center;gap:7px;
+    padding:12px;border-radius:10px;font-size:15px;font-weight:800;text-decoration:none}
+  .btn-llamar{background:var(--green);color:#fff}
+  .contacto-card.emergencia .btn-llamar{background:var(--red)}
+  .btn-wsp{background:#25d366;color:#fff}
+  .sin-contacto{font-size:13px;color:var(--muted)}
+  .btn-tel-top{background:var(--amber) !important;border-color:var(--amber) !important;color:#12251b !important;font-weight:800}
+  .banda-sos{margin:0 14px 14px;border:2px solid var(--red);background:#fdecea;border-radius:12px;
+    padding:12px;display:flex;align-items:center;gap:10px;cursor:pointer}
+  .banda-sos .ic{font-size:24px}
+  .banda-sos b{color:var(--red);display:block;font-size:14.5px}
+  .banda-sos span{font-size:12px;color:var(--muted)}
+  /* escáner */
+  .escaner-marco{position:relative;border-radius:14px;overflow:hidden;background:#000;
+    aspect-ratio:3/4;max-height:56vh;display:flex;align-items:center;justify-content:center}
+  .escaner-marco video{width:100%;height:100%;object-fit:cover}
+  .escaner-guia{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none}
+  .escaner-guia div{width:62%;aspect-ratio:1;border:3px solid rgba(255,255,255,.85);border-radius:18px;
+    box-shadow:0 0 0 2000px rgba(0,0,0,.35)}
+  /* ===== HOJA DE RUTA estilo Uber (v5.3) ===== */
+  .ruta-pantalla{position:fixed;inset:0;top:0;display:flex;flex-direction:column;background:#e8ece9;z-index:40}
+  .ruta-banda{background:var(--amber-soft);color:#7a5b10;font-size:12.5px;font-weight:700;padding:8px 12px;text-align:center}
+  .ruta-cabecera{background:#fff;padding:10px 14px 8px;border-bottom:1px solid var(--line);flex:0 0 auto;position:relative;z-index:3}
+  .ruta-cabecera > div:first-child{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap}
+  .ruta-cabecera b{font-size:14.5px;font-weight:800;color:var(--ink)}
+  .ruta-cabecera span{font-size:12px;color:var(--muted);font-weight:700}
+  .ruta-riel{height:6px;background:#e2e8e3;border-radius:99px;overflow:hidden;margin-top:8px}
+  .ruta-riel i{display:block;height:100%;background:var(--green);border-radius:99px;transition:width .35s ease}
+  /* overflow:hidden y z-index propios: si el CSS de Leaflet no llega (pasa
+     sin señal), los mosaicos se desbordan y tapan los botones de abajo.
+     Con esto el chofer siempre puede tocar, cargue o no el mapa. */
+  .ruta-mapa-caja{position:relative;flex:1 1 auto;min-height:0;overflow:hidden;z-index:1}
+  .ruta-mapa{position:absolute;inset:0;overflow:hidden}
+  .ruta-mapa-vacio{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    text-align:center;padding:24px;background:#eef1ed;color:var(--muted);font-size:13.5px;font-weight:600;line-height:1.5}
+  .leaflet-container{font-family:inherit}
+
+  .ruta-hoja{background:#fff;border-radius:18px 18px 0 0;box-shadow:0 -3px 14px rgba(20,40,30,.14);position:relative;z-index:3;
+    flex:0 0 auto;max-height:62vh;overflow-y:auto;padding-bottom:calc(var(--nav-h) + 10px)}
+  .ruta-hoja.abierta{max-height:82vh}
+  .ruta-agarre{display:flex;justify-content:center;padding:8px 0 4px;cursor:pointer}
+  .ruta-agarre span{width:44px;height:5px;border-radius:99px;background:#cfd8d2;display:block}
+  .ruta-parada-cab{display:flex;gap:11px;align-items:center;padding:6px 14px 12px}
+  .ruta-parada-cab .letra{width:46px;height:46px;border-radius:13px;background:#e7f4ec;color:var(--green);
+    display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:800;flex:0 0 auto}
+  .ruta-parada-cab .txt{flex:1;min-width:0}
+  .ruta-parada-cab b{display:block;font-size:15px;font-weight:800;line-height:1.25;color:var(--ink)}
+  .ruta-parada-cab span{display:block;font-size:12.5px;color:var(--muted);font-weight:600;margin-top:2px}
+  .ruta-ir{flex:0 0 auto;padding:10px 14px;border-radius:11px;border:none;background:var(--blue);color:#fff;
+    font-size:14px;font-weight:800;cursor:pointer;font-family:inherit}
+  .ruta-acciones{padding:0 14px 14px}
+  .ruta-btn{width:100%;padding:17px;border-radius:13px;font-size:16.5px;font-weight:800;border:none;
+    color:#fff;background:var(--green);cursor:pointer;font-family:inherit;margin-top:2px}
+  .ruta-btn:active{transform:scale(.985)}
+  .ruta-btn:disabled{opacity:.6}
+  .ruta-btn.gris{background:#fff;color:var(--muted);border:2px solid var(--line);font-size:14.5px;padding:13px;margin-top:9px}
+  .ruta-crono{background:#e7f4ec;border:2px solid var(--green);border-radius:13px;padding:11px;text-align:center;margin-bottom:12px}
+  .ruta-crono .num{font-size:32px;font-weight:800;color:var(--green);line-height:1;font-variant-numeric:tabular-nums}
+  .ruta-crono .txt{font-size:12.5px;font-weight:700;color:var(--green);margin-top:2px}
+  .ruta-crono.vencido{background:#fdecea;border-color:var(--red)}
+  .ruta-crono.vencido .num,.ruta-crono.vencido .txt{color:var(--red)}
+  .ruta-rotulo{font-size:11.5px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:var(--muted);margin:0 0 8px}
+  .ruta-pax{border:1px solid var(--line);border-radius:12px;padding:11px;margin-bottom:9px;background:#fff}
+  .ruta-pax .nom{font-size:15px;font-weight:800;margin-bottom:2px}
+  .ruta-tel{font-size:12.5px;color:var(--muted);font-weight:700;text-decoration:none;display:inline-block}
+  .ruta-chip{display:inline-block;background:var(--amber-soft);color:#7a5b10;border-radius:7px;
+    padding:2px 7px;font-size:11px;font-weight:800;margin-left:6px}
+  .ruta-par{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:10px}
+  .ruta-par button{padding:15px 6px;border-radius:12px;font-size:15px;font-weight:800;border:2px solid;cursor:pointer;font-family:inherit}
+  .ruta-par button:disabled{opacity:.6}
+  .ruta-par .si{background:#e7f4ec;border-color:var(--green);color:var(--green)}
+  .ruta-par .no{background:#fdecea;border-color:var(--red);color:var(--red)}
+  .ruta-marca{margin-top:9px;border-radius:11px;padding:10px 12px;font-size:14px;font-weight:800;
+    display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .ruta-marca.ok{background:#e7f4ec;color:var(--green)}
+  .ruta-marca.mal{background:#fdecea;color:var(--red)}
+  .ruta-marca small{display:block;width:100%;font-size:12px;font-weight:600;opacity:.9;margin-top:2px}
+  .ruta-deshacer{background:none;border:none;color:inherit;text-decoration:underline;font-weight:700;
+    font-size:12.5px;padding:0;cursor:pointer;font-family:inherit}
+  .ruta-trasbordo{margin:0 14px 14px;padding:11px 13px;border-radius:11px;background:var(--amber-soft);border:1px solid var(--amber)}
+  .ruta-trasbordo b{display:block;font-size:13.5px;color:#7a5b10}
+  .ruta-trasbordo span{display:block;font-size:12.5px;color:#8a6a10;font-weight:600;margin-top:2px}
+  .ruta-cuadros{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:10px 0 14px}
+  .ruta-cuadro{border-radius:12px;padding:14px 10px;text-align:center}
+  .ruta-cuadro b{display:block;font-size:28px;font-weight:800;line-height:1}
+  .ruta-cuadro span{font-size:11.5px;font-weight:800}
+  .ruta-cuadro.v{background:#e7f4ec;color:var(--green)}
+  .ruta-cuadro.r{background:#fdecea;color:var(--red)}
+  .ruta-detalle{border-top:1px solid var(--line);padding-top:10px}
+  .ruta-detalle div{font-size:13.5px;font-weight:600;padding:7px 0;border-bottom:1px dashed var(--line)}
+  .ruta-detalle div:last-child{border:0}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const {useState, useEffect, useMemo, useRef} = React;
+/* ============================================================
+   CheckFlota v5.3 — app móvil del conductor, conectada al panel.
+   NUEVO: la Hoja de ruta es un MAPA (Leaflet + OpenStreetMap, gratis y sin
+   claves) con las paradas del día, el recorrido y la unidad en vivo.
+   FlotaGestión (Operación B). Lee conductores, unidades y
+   vencimientos de la MISMA hoja de Google que el panel, y cada
+   novedad entra como OT CORRECTIVA en Mantenimiento.
+   La URL /exec es la misma del panel (se pega una vez o llega
+   por ?api=).
+   ============================================================ */
+const PREFIJO = "CFB:";
+const _mem = {};
+const almacen = {
+  get(k){ const K = PREFIJO + k; try { return localStorage.getItem(K); } catch(e){ return Object.prototype.hasOwnProperty.call(_mem,K) ? _mem[K] : null; } },
+  set(k,v){ const K = PREFIJO + k; try { localStorage.setItem(K,v); } catch(e){ _mem[K]=v; } },
+  del(k){ const K = PREFIJO + k; try { localStorage.removeItem(K); } catch(e){ delete _mem[K]; } },
+};
+/* ---------- marca: colores y logo ---------- */
+const mezclar = (hex, amt) => {   // amt -1 (negro) .. 1 (blanco)
+  const h = String(hex||"").replace("#","");
+  if (h.length !== 6) return hex;
+  const n = parseInt(h,16);
+  const canal = (c) => {
+    const v = amt < 0 ? c * (1 + amt) : c + (255 - c) * amt;
+    return Math.max(0, Math.min(255, Math.round(v)));
+  };
+  const r = canal((n>>16)&255), g = canal((n>>8)&255), b = canal(n&255);
+  return "#" + ((1<<24) + (r<<16) + (g<<8) + b).toString(16).slice(1);
+};
+const MARCA_DEF = { nombre:"CheckFlota", colorPrimario:"#1f7a4d", colorAcento:"#f5b52e", logo:"" };
+const marcaLocal = () => { try { return JSON.parse(almacen.get("MARCA_LOCAL")||"{}"); } catch(e){ return {}; } };
+const marcaFinal = (datos) => {
+  const hoja = (datos && datos.marca) || {};
+  const local = marcaLocal();
+  return {
+    nombre: local.nombre || hoja.nombreSistema || MARCA_DEF.nombre,
+    colorPrimario: local.colorPrimario || hoja.colorPrimario || MARCA_DEF.colorPrimario,
+    colorAcento: local.colorAcento || hoja.colorAcento || MARCA_DEF.colorAcento,
+    logo: local.logo || "",
+  };
+};
+const aplicarMarca = (m) => {
+  const r = document.documentElement.style;
+  r.setProperty("--green", m.colorPrimario);
+  r.setProperty("--green-dark", mezclar(m.colorPrimario, -0.28));
+  r.setProperty("--amber", m.colorAcento);
+  r.setProperty("--amber-soft", mezclar(m.colorAcento, 0.85));
+  r.setProperty("--dark", mezclar(m.colorPrimario, -0.78));
+  r.setProperty("--dark2", mezclar(m.colorPrimario, -0.66));
+  r.setProperty("--hero2", mezclar(m.colorPrimario, -0.55));
+  r.setProperty("--hero3", mezclar(m.colorPrimario, -0.35));
+  r.setProperty("--sobre-oscuro", mezclar(m.colorPrimario, 0.55));
+  document.title = m.nombre + " · App del Conductor";
+};
+/* Insignia: logo de la empresa o iniciales */
+function Insignia({marca, size}){
+  const s = size || 46;
+  if (marca && marca.logo)
+    return <img src={marca.logo} alt="" style={{width:s,height:s,borderRadius:Math.round(s*0.22),objectFit:"cover",flexShrink:0,background:"#fff"}}/>;
+  const palabras = String((marca && marca.nombre) || "CF").replace(/[^A-Za-zÁÉÍÓÚÑáéíóúñ0-9 ]/g,"").trim().split(/\s+/).filter(Boolean);
+  const ini = (palabras.length >= 2 ? palabras.map(p=>p[0]).join("").slice(0,2) : (palabras[0]||"CF").slice(0,2)).toUpperCase();
+  return <div className="brand-badge" style={{width:s,height:s,fontSize:Math.round(s*0.42)}}>{ini}</div>;
+}
+const mismoId = (a,b) => String(a) === String(b);
+const esActivo = (e) => { const s = String(e||"").trim().toLowerCase(); return s==="activo"||s==="activa"; };
+const soloDigitos = (s) => String(s||"").replace(/\D/g,"");
+const hoy = () => new Date().toISOString().slice(0,10);
+const horaAhora = () => new Date().toTimeString().slice(0,5);
+const diasHasta = (f) => { if(!f) return null; const d = Math.ceil((new Date(String(f).slice(0,10) + "T12:00:00") - new Date())/86400000); return isNaN(d) ? null : d; };
+/* Las URLs largas de Drive se muestran como "📎 Ver adjunto" en vez del chorizo de letras */
+function TextoConLinks({texto}){
+  const partes = String(texto||"").split(/(https?:\/\/[^\s]+)/g);
+  let n = 0;
+  return (
+    <React.Fragment>
+      {partes.map((p,i)=>{
+        if (/^https?:\/\//.test(p)){
+          n++;
+          return <a key={i} href={p} target="_blank" rel="noopener"
+            style={{color:"var(--green)",fontWeight:700,textDecoration:"underline"}}>📎 Ver adjunto {n > 1 ? n : ""}</a>;
+        }
+        return p;
+      })}
+    </React.Fragment>
+  );
+}
+const fmtFecha = (f) => { if(!f) return "—"; const p = String(f).slice(0,10).split("-"); return p.length===3 ? `${p[2]}/${p[1]}/${p[0]}` : f; };
+/* ---------- URL del script (misma que el panel) ---------- */
+aplicarMarca(marcaFinal(null));
+/* ============================================================
+   URL FIJA DEL SCRIPT — ya viene cargada en el archivo.
+   El conductor no configura nada: abre la app y listo.
+   ============================================================ */
+const API_URL_FIJA = "https://script.google.com/macros/s/AKfycbx4yj4OI4_EDhtglhgoOMDOrfqRBUZw_lQliBezHfAerHkWeYU65qd1ahLuno7cLGMq/exec";
+const params = new URLSearchParams(location.search);
+if (params.get("api")) almacen.set("API_URL", params.get("api").trim());
+const API_URL = /^https:\/\/script\.google\.com\//.test(API_URL_FIJA)
+  ? API_URL_FIJA
+  : (almacen.get("API_URL") || "").trim();
+const INTERNO_QR = (params.get("interno") || "").trim();
+async function apiGet(){
+  const r = await fetch(API_URL);
+  return r.json();
+}
+async function apiPost(payload){
+  const r = await fetch(API_URL, {
+    method:"POST",
+    headers:{"Content-Type":"text/plain;charset=utf-8"},
+    body: JSON.stringify(payload),
+  });
+  const txt = await r.text();
+  try { return JSON.parse(txt); }
+  catch(e){ throw new Error("El script no devolvió datos. Revisá que la implementación esté actualizada (Implementar → Administrar implementaciones → Versión: NUEVA)."); }
+}
+/* ============================================================
+   MODO CAMPO (Vaca Muerta y yacimientos sin señal)
+   · Todo envío que no pueda salir queda guardado en el teléfono.
+   · Cuando vuelve la señal, se manda solo (al abrir la app, al
+     reconectar y cada 1 minuto).
+   · Desde "Pendientes" se puede forzar el envío o descargar todo
+     en un archivo.
+   ============================================================ */
+const colaLeer = () => { try { return JSON.parse(almacen.get("COLA")||"[]"); } catch(e){ return []; } };
+const colaGuardar = (arr) => almacen.set("COLA", JSON.stringify(arr));
+function encolar(action, data){
+  const cola = colaLeer();
+  cola.push({uid: Date.now()+"-"+Math.random().toString(36).slice(2), action, data, creado:new Date().toISOString()});
+  try { colaGuardar(cola); } catch(e){
+    alert("La memoria del teléfono está llena de envíos pendientes. Descargá el archivo de pendientes y vaciá la cola.");
+  }
+}
+async function subirAdjuntosPendientes(adjuntos){
+  const out = [];
+  for (const a of (adjuntos||[])){
+    if (a.url){ out.push({tipo:a.tipo, nombre:a.nombre, url:a.url}); continue; }
+    const r = await apiPost({action:"subirAdjunto", nombre:a.nombre, mime:a.mime, base64:a.base64});
+    if (!r || r.ok === false) throw new Error((r&&r.error)||"No se pudo subir un adjunto");
+    a.url = r.url;
+    out.push({tipo:a.tipo, nombre:a.nombre, url:r.url});
+  }
+  return out;
+}
+/* Envía ya si hay señal; si no (o si falla), queda guardado para después. */
+async function enviarOEncolar(action, data, demo){
+  if (demo) return {ok:true, demo:true};
+  if (!API_URL || !navigator.onLine){ encolar(action, data); return {encolado:true}; }
+  try{
+    const adjuntos = await subirAdjuntosPendientes(data.adjuntos);
+    const r = await apiPost({action: action, data: {...data, adjuntos: adjuntos}});
+    if (!r || r.ok === false) throw new Error((r&&r.error)||"error del script");
+    return {ok:true};
+  }catch(e){
+    encolar(action, data);
+    return {encolado:true, error:String(e.message||e)};
+  }
+}
+let _procesandoCola = false;
+async function procesarCola(alCambiar){
+  if (_procesandoCola || !API_URL || !navigator.onLine) { if(alCambiar) alCambiar(colaLeer().length); return; }
+  _procesandoCola = true;
+  try{
+    let cola = colaLeer();
+    while (cola.length){
+      const it = cola[0];
+      const adjuntos = await subirAdjuntosPendientes(it.data.adjuntos || []);
+      colaGuardar(cola);   // deja anotadas las URLs de lo que ya subió
+      const r = await apiPost({action: it.action, data: {...it.data, adjuntos: adjuntos}});
+      if (!r || r.ok === false) throw new Error((r&&r.error)||"error del script");
+      cola.shift();
+      colaGuardar(cola);
+      if (alCambiar) alCambiar(cola.length);
+    }
+  }catch(e){ /* sigue sin señal o falló: se reintenta más tarde */ }
+  finally{
+    _procesandoCola = false;
+    if (alCambiar) alCambiar(colaLeer().length);
+  }
+}
+function descargarPendientes(){
+  const cola = colaLeer().map(it => {
+    const d = {...it.data};
+    d.adjuntos = (d.adjuntos||[]).map(a => a.url ? {tipo:a.tipo,nombre:a.nombre,url:a.url} : {tipo:a.tipo,nombre:a.nombre,base64:a.base64,mime:a.mime});
+    return {creado:it.creado, action:it.action, data:d};
+  });
+  const blob = new Blob([JSON.stringify(cola, null, 2)], {type:"application/json"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "checkflota_pendientes_" + hoy() + ".json";
+  a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 5000);
+}
+/* ============================================================
+   LOGIN SEGURO: valida en el servidor y baja SOLO lo del
+   conductor (sus unidades, sus novedades, sus pedidos).
+   Sin señal: entra con lo último sincronizado en este teléfono.
+   ============================================================ */
+async function loginConductor(dni, pin){
+  const d = soloDigitos(dni);
+  if (!d || !String(pin).trim()) return {error:"Poné tu DNI y tu PIN."};
+  if (!API_URL){
+    // modo demo (sin URL configurada)
+    const c = (DEMO.conductores||[]).find(x => soloDigitos(x.dni) === d && esActivo(x.estado));
+    if (!c) return {error:"No hay un conductor activo con ese DNI."};
+    const ok = c.pin ? String(pin).trim()===String(c.pin) : String(pin).trim()===d.slice(-4);
+    if (!ok) return {error:"PIN incorrecto."};
+    return {conductor:c, datos:{...DEMO, conductor:c}, demo:true};
+  }
+  const deCache = () => {
+    let cache = null;
+    try { cache = JSON.parse(almacen.get("DATOS_"+d)||"null"); } catch(e){ }
+    if (!cache || !cache.datos || !cache.datos.conductor) return null;
+    const c = cache.datos.conductor;
+    const ok = (c.pin != null && String(c.pin).trim() !== "")
+      ? String(pin).trim() === String(c.pin).trim()
+      : String(pin).trim() === d.slice(-4);
+    if (!ok) return {error:"PIN incorrecto."};
+    return {conductor:c, datos:cache.datos, offline:true, fecha:cache.fecha};
+  };
+  if (!navigator.onLine){
+    return deCache() || {error:"Sin señal y sin datos guardados en este teléfono. La primera vez hay que entrar con internet."};
+  }
+  try{
+    const r = await apiPost({action:"datosConductor", dni:d, pin:String(pin).trim()});
+    if (!r || r.ok === false) return {error:(r && r.error) || "No se pudo ingresar."};
+    try { almacen.set("DATOS_"+d, JSON.stringify({fecha:new Date().toISOString(), datos:r.datos})); } catch(e){ }
+    return {conductor:r.datos.conductor, datos:r.datos};
+  }catch(e){
+    const c = deCache();
+    if (c) return c;
+    /* No mentir: si el script contestó pero mal (una página de error de
+       Google, o la implementación vieja), el problema NO es la señal.
+       Decirlo con todas las letras ahorra media hora de buscar donde no es. */
+    const msg = String((e && e.message) || e || "");
+    if (/no devolvió datos|implementaci|DOCTYPE|JSON/i.test(msg)){
+      return {error:"El sistema no está respondiendo bien. NO es tu teléfono ni tu señal: hay que volver a publicar el script en la planilla (Implementar → Administrar implementaciones → Versión: NUEVA). Mostrale este mensaje a la oficina."};
+    }
+    return {error:"Sin señal y sin datos guardados en este teléfono. La primera vez hay que entrar con internet."};
+  }
+}
+/* historial propio del conductor, guardado en el teléfono */
+const registrosLeer = (dni) => { try { return JSON.parse(almacen.get("REGISTROS_"+dni)||"[]"); } catch(e){ return []; } };
+const registrosAgregar = (dni, reg) => {
+  const arr = [reg].concat(registrosLeer(dni)).slice(0, 60);
+  try { almacen.set("REGISTROS_"+dni, JSON.stringify(arr)); } catch(e){}
+  return arr;
+};
+/* ---------- listas fijas de la planilla ---------- */
+const ITEMS = [
+  "LICENCIA DE CONDUCIR D2/D3","LIBRETA DE TRABAJO","LINTI","DOCUMENTACIÓN DE LA UNIDAD",
+  "LISTA DE PASAJEROS / DUT","TASA CNRT","ITINERARIO DE VIAJE","EXTINGUIDOR (CARGA, ESTADO Y SUJECIÓN)",
+  "MARTILLOS DE EMERGENCIA (UNO POR CADA SALIDA DE EMERGENCIA)","CINTURÓN DE SEGURIDAD (CONDUCTOR)",
+  "CINTURÓN DE SEGURIDAD (PASAJEROS)","BOTIQUÍN DE PRIMEROS AUXILIOS",
+  "CRIQUET HIDRÁULICO CON LLAVE DE RUEDA","CONTROL DE TACÓGRAFO",
+  "LUCES REGLAMENTARIAS (TODAS)","VIGIA DE RUEDA / VIGIA MOTOR",
+  "CARTEL PROGRAMACIÓN","CUBIERTAS","CUBIERTA DE AUXILIO","AA/CC - CALEFACCIÓN",
+  "PARABRISAS, VENTANILLAS Y LUNETAS","BOCINA",
+  "ESPEJOS RETROVISOR (DERECHO)","SISTEMA LIMPIAPARABRISAS Y LAVAPARABRISAS",
+  "ESPEJOS RETROVISOR (IZQUIERDO)","CARGA DE AIRE",
+  "FUNCIONAMIENTO DE MÁQUINA","CONTROL DE NIVELES DE ACEITE, LÍQUIDO HIDRÁULICO Y LÍQUIDO REFRIGERANTE",
+  "COMBUSTIBLE","UREA","CAJA DE HERRAMIENTAS",
+];
+const SECTORES = ["MECÁNICA","ELECTRICIDAD","CARROCERÍA","G. Y SUSPENSIÓN","AUDIO Y VIDEO","AIRE ACOND. Y CALEF.","CHAPA Y PINTURA"];
+const LINEAS = ["0 » sin especificar","Línea 1","Línea 2","Interurbano","Contratado"];
+const TALLERES_DEF = ["Taller propio","Taller externo"];
+/* ---------- datos de demostración (solo sin URL configurada) ---------- */
+const DEMO = {
+  empresas: [{id:1, nombre:"EMPRESA DEMO", estado:"activo"}],
+  marca: {nombreSistema:"FlotaGestión"},
+  vehiculos: [
+    {id:101, vehiculo:"24506", patente:"AC123DE", marca:"Mercedes-Benz", modelo:"Atego 1725", estado:"activo", empresa_id:1, vencimientoVTV:"2026-09-10", vencimientoSeguro:"2026-08-25", vencimientoOblea:"2027-01-15"},
+    {id:102, vehiculo:"24318", patente:"AF875XA", marca:"IVECO", modelo:"Tector", estado:"activo", empresa_id:1, vencimientoVTV:"2026-08-05", vencimientoSeguro:"", vencimientoOblea:"2026-12-01"},
+  ],
+  conductores: [
+    {id:201, nombre:"LERICHE SERGIO", dni:"22333444", estado:"activo", empresa_id:1, licencia:"D2", vencLicencia:"2027-03-01"},
+    {id:202, nombre:"VALLEJOS FERNANDO", dni:"25666777", estado:"activo", empresa_id:1, licencia:"D2", vencLicencia:"2026-09-20"},
+  ],
+  mantenimiento: [
+    {id:9001, empresa_id:1, vehiculo_id:101, tipo:"Correctivo — Novedad de conductor", descripcion:"[LERICHE SERGIO] SECTOR: MECÁNICA · Pérdida de aire en eje trasero", fecha:"2026-08-13", estado:"en_progreso", taller:"App conductor", costo:0, km:0},
+    {id:9002, empresa_id:1, vehiculo_id:101, tipo:"Correctivo — Novedad de conductor (check)", descripcion:"[LERICHE SERGIO] ÍTEMS: 22 BOCINA", fecha:"2026-08-10", estado:"completado", taller:"App conductor", costo:0, km:0},
+  ],
+  seguimientoOT: [
+    {ot_id:9001, fecha:"2026-08-13", comentario:"La vio el asesor técnico, pasa a taller.", estado:"en_progreso"},
+    {ot_id:9001, fecha:"2026-08-14", comentario:"Se pidió el repuesto del pulmón de freno.", estado:"en_progreso"},
+    {ot_id:9002, fecha:"2026-08-11", comentario:"Bocina reemplazada, listo.", estado:"completado"},
+  ],
+  insumos: [
+    {id:1, nombre:"Aceite hidráulico", categoria:"Lubricantes", unidad:"litro", activo:"si"},
+    {id:2, nombre:"Refrigerante", categoria:"Lubricantes", unidad:"litro", activo:"si"},
+    {id:3, nombre:"Lamparita H7", categoria:"Eléctrico", unidad:"unidad", activo:"si"},
+    {id:4, nombre:"UREA", categoria:"Fluidos", unidad:"bidón", activo:"si"},
+  ],
+  pedidos: [
+    {id:"P1", fecha:"2026-08-12", hora:"09:10", conductor:"LERICHE SERGIO", dni:"22333444", interno:"24506", items:[{nombre:"UREA",cantidad:2,unidad:"bidón"}], comentario:"", estado:"entregado", respuesta:"Retirar en pañol"},
+  ],
+  diagramas: [
+    {id:"D1", fecha:"2026-08-16", interno:"24506", tarea:"LAVADO", hora:"07:00", notas:"Lavadero central", estado:"pendiente"},
+    {id:"D2", fecha:"2026-08-16", interno:"24506", tarea:"GASOIL", hora:"07:30", notas:"Surtidor propio · tanque lleno", estado:"pendiente"},
+    {id:"D3", fecha:"2026-08-18", interno:"24318", tarea:"GASOIL", hora:"06:45", notas:"", estado:"pendiente"},
+  ],
+
+  biblioteca: [
+    {id:"B1", titulo:"Manual de cabina (ejemplo)", categoria:"Manual de unidad", url:"https://drive.google.com", notas:"solo de muestra"},
+    {id:"B2", titulo:"Instructivo de check diario (ejemplo)", categoria:"Instructivo de operación", url:"https://drive.google.com", notas:""},
+  ],
+};
+/* ---------- lectura de archivos / compresión de imágenes ---------- */
+const leerBase64 = (file) => new Promise((resolve,reject)=>{
+  const lector = new FileReader();
+  lector.onerror = () => reject(new Error("No se pudo leer el archivo."));
+  lector.onload = () => resolve(String(lector.result).split(",")[1]);
+  lector.readAsDataURL(file);
+});
+const comprimirImagen = (file, maxLado=1400, calidad=0.72) => new Promise((resolve,reject)=>{
+  const lector = new FileReader();
+  lector.onerror = () => reject(new Error("No se pudo leer el archivo."));
+  lector.onload = () => {
+    const img = new Image();
+    img.onerror = () => reject(new Error("El archivo no es una imagen válida."));
+    img.onload = () => {
+      let w = img.width, h = img.height;
+      if (Math.max(w,h) > maxLado){ const esc = maxLado/Math.max(w,h); w = Math.round(w*esc); h = Math.round(h*esc); }
+      const cv = document.createElement("canvas");
+      cv.width = w; cv.height = h;
+      cv.getContext("2d").drawImage(img, 0, 0, w, h);
+      const dataUrl = cv.toDataURL("image/jpeg", calidad);
+      resolve({ base64: dataUrl.split(",")[1], mime: "image/jpeg", preview: dataUrl });
+    };
+    img.src = lector.result;
+  };
+  lector.readAsDataURL(file);
+});
+/* ================= CONFIGURACIÓN INICIAL ================= */
+function Configuracion({onDemo}){
+  const [url,setUrl] = useState("");
+  const [error,setError] = useState("");
+  const guardar = () => {
+    const u = url.trim();
+    if (!/^https:\/\/script\.google\.com\//.test(u)){
+      setError("La URL no parece de Apps Script. Tiene que empezar con https://script.google.com/ y terminar en /exec.");
+      return;
+    }
+    almacen.set("API_URL", u);
+    location.reload();
+  };
+  return (
+    <div className="login-wrap">
+      <div className="login-card">
+        <div className="brand">
+          <div className="brand-badge">CF</div>
+          <h1>CheckFlota<small>Configuración inicial</small></h1>
+        </div>
+        <label>URL del script (/exec) — la misma del panel</label>
+        <input value={url} onChange={e=>setUrl(e.target.value)} placeholder="https://script.google.com/macros/s/…/exec"/>
+        {error && <div className="login-error">{error}</div>}
+        <button className="btn" onClick={guardar} disabled={!url.trim()}>Conectar</button>
+        <button className="btn sec" onClick={onDemo}>Probar en modo demo</button>
+        <div className="login-hint">
+          Pegá acá la <b>misma URL /exec</b> que usa el panel FlotaGestión.
+          También podés abrir esta página con <b>?api=URL</b> y queda configurada sola.
+        </div>
+      </div>
+    </div>
+  );
+}
+/* ================= LOGIN ================= */
+function Login({marca, demo, onLogin}){
+  const [probando,setProbando] = useState("");
+  const [dni,setDni] = useState("");
+  const [pin,setPin] = useState("");
+  const [error,setError] = useState("");
+  const [busy,setBusy] = useState(false);
+  const entrar = async () => {
+    setError(""); setBusy(true);
+    const r = await loginConductor(dni, pin);
+    setBusy(false);
+    if (r.error){ setError(r.error); return; }
+    almacen.set("SESION", JSON.stringify({dni: soloDigitos(dni), pin: String(pin).trim()}));
+    onLogin(r);
+  };
+  return (
+    <div className="login-wrap">
+      <div className="login-card">
+        <div className="brand">
+          <Insignia marca={marca}/>
+          <h1>{(marca && marca.nombre) || "CheckFlota"}<small>App del Conductor</small></h1>
+        </div>
+        <label>DNI</label>
+        <input inputMode="numeric" value={dni} onChange={e=>setDni(e.target.value)} placeholder="Sin puntos" autoComplete="username"/>
+        <label>PIN</label>
+        <input type="password" inputMode="numeric" value={pin} onChange={e=>setPin(e.target.value)}
+          onKeyDown={e=>e.key==="Enter" && entrar()} placeholder="••••" autoComplete="current-password"/>
+        {error && <div className="login-error">{error}</div>}
+        <button className="btn" onClick={entrar} disabled={busy || !dni || !pin}>{busy ? "Ingresando…" : "Ingresar"}</button>
+          <button type="button" className="btn sec" style={{marginTop:10}} onClick={async ()=>{
+            setProbando("Probando…"); 
+            if (!API_URL){ setProbando("No hay URL del sistema cargada en la app."); return; }
+            if (!navigator.onLine){ setProbando("Tu teléfono está sin internet."); return; }
+            try{
+              const r = await apiPost({action:"ping"});
+              setProbando(r && r.ok ? ("✔ El sistema responde bien (" + (r.version||"") + "). Si igual no entrás, revisá el DNI y el PIN.")
+                                    : ("El sistema contestó, pero con un error: " + ((r&&r.error)||"desconocido")));
+            }catch(e){
+              setProbando("✖ El sistema NO responde. Hay que publicar el script de nuevo en la planilla: Implementar → Administrar implementaciones → Versión: NUEVA. (No es tu teléfono.)");
+            }
+          }}>Probar la conexión</button>
+          {probando && <p style={{marginTop:12,fontSize:13,lineHeight:1.5,padding:"10px 12px",borderRadius:9,
+            background:/✔/.test(probando)?"#e7f4ec":"var(--amber-soft)",
+            color:/✔/.test(probando)?"var(--green-dark)":"#7a5b10",fontWeight:600}}>{probando}</p>}
+        <div className="login-hint">
+          Ingresá con tu <b>DNI</b>. Si nunca te asignaron un PIN, usá los <b>últimos 4 números de tu DNI</b>.
+          Solo vas a ver <b>tus unidades y tus novedades</b>.
+          {demo && <span><br/><b>Modo demo:</b> DNI 22333444 · PIN 3444</span>}
+        </div>
+      </div>
+    </div>
+  );
+}
+/* ================= ADJUNTOS (fotos + audios) — modo campo ================= */
+function Adjuntos({adjuntos, setAdjuntos, titulo}){
+  const refFoto = useRef(null);
+  const refImagen = useRef(null);
+  const refAudio = useRef(null);
+  const agregar = async (file, tipo) => {
+    if (!file) return;
+    const nombre = file.name || (tipo === "audio" ? "audio.m4a" : "foto.jpg");
+    let base64, mime = file.type || "", preview = null;
+    try{
+      if (tipo === "imagen"){
+        const c = await comprimirImagen(file);
+        base64 = c.base64; mime = c.mime; preview = c.preview;
+      }else{
+        if (file.size > 10*1024*1024){ alert("El audio es muy pesado (máx. 10 MB). Grabá uno más corto."); return; }
+        base64 = await leerBase64(file);
+      }
+    }catch(e){ alert(e.message || "No se pudo leer el archivo."); return; }
+    const uid = Date.now() + "-" + Math.random().toString(36).slice(2);
+    setAdjuntos(a => [...a, {uid, tipo, nombre, mime, base64, preview, url:""}]);
+  };
+  const alElegir = (tipo) => (e) => {
+    Array.from(e.target.files || []).forEach(f => agregar(f, tipo));
+    e.target.value = "";
+  };
+  return (
+    <div className="card">
+      <h2>{titulo || "Fotos y audios"}</h2>
+      <div className="chk-help">Sacá una foto, subí una imagen guardada o grabá un audio. <b>Sin señal también funciona</b>: queda en el teléfono y sale solo cuando haya conexión.</div>
+      <div className="adj-btns">
+        <div className="adj-btn" onClick={()=>refFoto.current.click()}>📷 Sacar foto</div>
+        <div className="adj-btn" onClick={()=>refImagen.current.click()}>🖼 Subir imagen</div>
+        <div className="adj-btn" onClick={()=>refAudio.current.click()}>🎙 Subir audio</div>
+      </div>
+      <input ref={refFoto} type="file" accept="image/*" capture="environment" style={{display:"none"}} onChange={alElegir("imagen")}/>
+      <input ref={refImagen} type="file" accept="image/*" multiple style={{display:"none"}} onChange={alElegir("imagen")}/>
+      <input ref={refAudio} type="file" accept="audio/*" style={{display:"none"}} onChange={alElegir("audio")}/>
+      {adjuntos.map(a=>(
+        <div className="adj-item" key={a.uid}>
+          {a.preview ? <img src={a.preview} alt=""/> : <div className="ico">{a.tipo==="audio" ? "🎙" : "🖼"}</div>}
+          <div className="inf">
+            <b>{a.nombre}</b>
+            <span className="adj-est ok">✓ Listo para enviar</span>
+          </div>
+          <button className="adj-x" onClick={()=>setAdjuntos(x=>x.filter(y=>y.uid!==a.uid))}>✕</button>
+        </div>
+      ))}
+    </div>
+  );
+}
+/* ================= SELECTOR DE UNIDAD ================= */
+function SelectorUnidad({vehiculos, vehId, setVehId, label}){
+  return (
+    <div className="field">
+      <label>{label || "Unidad *"}</label>
+      <select value={vehId} onChange={e=>setVehId(e.target.value)}>
+        <option value="">— Elegir unidad —</option>
+        {vehiculos.map(v=>
+          <option key={v.id} value={v.id}>{v.vehiculo || "s/n"} ({v.patente}) {v.marca} {v.modelo || ""}</option>)}
+      </select>
+    </div>
+  );
+}
+const datosDeUnidad = (vehiculos, vehId) => {
+  const v = vehiculos.find(x => mismoId(x.id, vehId));
+  return v ? {vehiculo_id: v.id, interno: String(v.vehiculo||""), patente: String(v.patente||"")} : {vehiculo_id: vehId, interno:"", patente:""};
+};
+/* ================= NOVEDAD RÁPIDA / FOTOS Y AUDIOS ================= */
+function NovedadRapida({user, datos, empresaId, empresaNombre, demo, modo, onSaved, onVolver}){
+  const vehiculos = datos.vehiculos || [];
+  const [vehId,setVehId] = useState(vehiculos.length===1 ? String(vehiculos[0].id) : "");
+  const [sector,setSector] = useState(SECTORES[0]);
+  const [descripcion,setDescripcion] = useState("");
+  const [adjuntos,setAdjuntos] = useState([]);
+  const [toast,setToast] = useState(null);
+  const [busy,setBusy] = useState(false);
+  const esMedia = modo === "media";
+  const mostrarToast = (msg, err=false) => { setToast({msg,err}); setTimeout(()=>setToast(null), 4000); };
+  const guardar = async () => {
+    if(!vehId) return mostrarToast("Elegí la unidad.", true);
+    if(!esMedia && !descripcion.trim()) return mostrarToast("Contá qué le pasa a la unidad.", true);
+    if(esMedia && adjuntos.length===0 && !descripcion.trim()) return mostrarToast("Adjuntá al menos una foto o audio.", true);
+    const nov = {
+      origen: esMedia ? "media" : "novedad",
+      empresa: empresaNombre, empresa_id: empresaId,
+      fecha: hoy(), hora: horaAhora(),
+      ...datosDeUnidad(vehiculos, vehId),
+      conductor: user.nombre, conductor_id: user.id, dni: user.dni,
+      sector: esMedia ? "" : sector,
+      descripcion: descripcion.trim(),
+      adjuntos: adjuntos.map(a=>({tipo:a.tipo, nombre:a.nombre, mime:a.mime, base64:a.base64, url:a.url||""})),
+      timestamp: new Date().toISOString(),
+    };
+    setBusy(true);
+    const res = await enviarOEncolar("guardarNovedad", nov, demo);
+    setBusy(false);
+    onSaved({tipo:"novedad", interno:nov.interno, patente:nov.patente, fecha:nov.fecha, hora:nov.hora,
+      tipoPlanilla:"NOVEDAD", items:[], adjuntos:nov.adjuntos.length, descripcion:nov.descripcion,
+      pendiente: !!res.encolado});
+    mostrarToast(res.encolado
+      ? "📴 Sin señal: quedó guardado en el teléfono. Se manda solo cuando haya conexión."
+      : "✓ Enviado. Entró a Mantenimiento como correctiva.");
+    setTimeout(onVolver, 1400);
+  };
+  return (
+    <React.Fragment>
+      {toast && <div className={"toast" + (toast.err ? " err":"")}>{toast.msg}</div>}
+      <div className="card">
+        <h2>{esMedia ? "🚐 Fotos de la unidad" : "Reportar novedad"}</h2>
+        <div className="chk-help">
+          {esMedia
+            ? "Sacale fotos a la unidad (cómo está, golpes, detalles) o grabá un audio, y mandalo al taller. Queda registrado con tu nombre."
+            : "Contá el problema y va directo a MANTENIMIENTO como correctiva, con tu nombre."}
+        </div>
+        <div className="grid c2">
+          <SelectorUnidad vehiculos={vehiculos} vehId={vehId} setVehId={setVehId}/>
+          {!esMedia &&
+            <div className="field">
+              <label>Sector</label>
+              <select value={sector} onChange={e=>setSector(e.target.value)}>
+                {SECTORES.map(s=><option key={s}>{s}</option>)}
+              </select>
+            </div>}
+        </div>
+        <div className="field" style={{marginTop:12}}>
+          <label>{esMedia ? "Comentario (opcional)" : "¿Qué le pasa a la unidad? *"}</label>
+          <textarea value={descripcion} onChange={e=>setDescripcion(e.target.value)}
+            placeholder={esMedia ? "Ej: ruido en el motor, va audio" : "Ej: pérdida de aire en el eje trasero"}/>
+        </div>
+      </div>
+      <Adjuntos adjuntos={adjuntos} setAdjuntos={setAdjuntos}/>
+      <div className="savebar">
+        <button className="btn" onClick={guardar} disabled={busy}>
+          {busy ? "Enviando..." : (esMedia ? "Enviar fotos de la unidad" : "Enviar novedad al taller")}
+        </button>
+      </div>
+    </React.Fragment>
+  );
+}
+/* ================= CHECK COMPLETO ================= */
+function CheckForm({user, datos, empresaId, empresaNombre, demo, onSaved}){
+  const vehiculos = datos.vehiculos || [];
+  const [vehId,setVehId] = useState("");
+  const [movimiento,setMovimiento] = useState("SALIDA DEL PREDIO");
+  const [kmFijado,setKmFijado] = useState(false);
+  const [chofer2,setChofer2] = useState("");
+  const [linea,setLinea] = useState(LINEAS[0]);
+  const [taller,setTaller] = useState("");
+  const [fecha,setFecha] = useState(hoy());
+  const [hora,setHora] = useState(horaAhora());
+  const [kmIni,setKmIni] = useState("");
+  const [kmFin,setKmFin] = useState("");
+  const [conNovedades,setConNovedades] = useState(true);
+  const [marcados,setMarcados] = useState({});
+  const [comentarios,setComentarios] = useState({});
+  const [adjuntos,setAdjuntos] = useState([]);
+  const [toast,setToast] = useState(null);
+  const [busy,setBusy] = useState(false);
+  const totalKms = useMemo(()=>{
+    const a = parseFloat(kmIni), b = parseFloat(kmFin);
+    if(isNaN(a)||isNaN(b)) return null;
+    return b - a;
+  },[kmIni,kmFin]);
+  const toggleItem = i => setMarcados(m => ({...m, [i]: !m[i]}));
+  const mostrarToast = (msg, err=false) => { setToast({msg,err}); setTimeout(()=>setToast(null), 4000); };
+  /* Kms. Iniciales: quedan FIJADOS con el último km final registrado de la
+     unidad. El conductor solo carga el final. Si la unidad no tiene historial
+     todavía, el campo se puede escribir (primera carga). */
+  useEffect(()=>{
+    const v = vehiculos.find(x => mismoId(x.id, vehId));
+    if (v && v.kmUltimo != null && v.kmUltimo !== "" && Number(v.kmUltimo) > 0){
+      setKmIni(String(v.kmUltimo)); setKmFijado(true);
+    } else {
+      setKmIni(""); setKmFijado(false);
+    }
+  },[vehId]);
+  const guardar = async () => {
+    if(!vehId) return mostrarToast("Elegí el interno.", true);
+    if(kmIni==="" || kmFin==="") return mostrarToast("Cargá los kilómetros iniciales y finales.", true);
+    if(totalKms !== null && totalKms < 0) return mostrarToast("Los kms finales no pueden ser menores a los iniciales.", true);
+    const itemsMarcados = ITEMS
+      .map((it,i)=> marcados[i] ? {nro: String(i+1).padStart(2,"0"), item: it} : null)
+      .filter(Boolean);
+    const comentariosLimpios = {};
+    SECTORES.forEach(s => { if((comentarios[s]||"").trim()) comentariosLimpios[s] = comentarios[s].trim(); });
+    if(conNovedades && itemsMarcados.length===0 && Object.keys(comentariosLimpios).length===0 && adjuntos.length===0){
+      return mostrarToast("Marcaste 'Planilla de novedades' pero no cargaste ninguna. Marcá ítems, comentá o adjuntá algo — o pasá a 'Sin novedades'.", true);
+    }
+    const informe = {
+      empresa: empresaNombre, empresa_id: empresaId,
+      fecha, hora,
+      ...datosDeUnidad(vehiculos, vehId),
+      conductor: user.nombre, conductor_id: user.id, dni: user.dni,
+      movimiento: movimiento,
+      chofer2: chofer2 || "",
+      linea, taller,
+      kmsIniciales: parseFloat(kmIni),
+      kmsFinales: parseFloat(kmFin),
+      totalKms,
+      tipoPlanilla: conNovedades ? "CON NOVEDADES" : "SIN NOVEDADES",
+      items: conNovedades ? itemsMarcados : [],
+      comentariosSector: conNovedades ? comentariosLimpios : {},
+      adjuntos: adjuntos.map(a=>({tipo:a.tipo, nombre:a.nombre, mime:a.mime, base64:a.base64, url:a.url||""})),
+      timestamp: new Date().toISOString(),
+    };
+    setBusy(true);
+    const res = await enviarOEncolar("guardarCheck", informe, demo);
+    setBusy(false);
+    onSaved({...informe, adjuntos: informe.adjuntos.length, pendiente: !!res.encolado});
+    mostrarToast(res.encolado
+      ? "📴 Sin señal: el informe quedó guardado en el teléfono. Se manda solo cuando haya conexión."
+      : (conNovedades
+        ? "✓ Informe guardado. Las novedades pasaron a Mantenimiento como correctivas."
+        : "✓ Informe guardado correctamente"));
+    setKmIni(""); setKmFin(""); setMarcados({}); setComentarios({}); setAdjuntos([]);
+    setConNovedades(true); setHora(horaAhora()); setChofer2("");
+  };
+  return (
+    <React.Fragment>
+      {toast && <div className={"toast" + (toast.err ? " err":"")}>{toast.msg}</div>}
+      <div className="card">
+        <h2>Tipo de check</h2>
+        <div className="toggle">
+          <button className={movimiento==="SALIDA DEL PREDIO" ? "on-ok":""} onClick={()=>setMovimiento("SALIDA DEL PREDIO")}>
+            🔼 Salida del predio
+          </button>
+          <button className={movimiento==="INGRESO AL PREDIO" ? "on-ok":""} onClick={()=>setMovimiento("INGRESO AL PREDIO")}>
+            🔽 Ingreso al predio
+          </button>
+        </div>
+      </div>
+      <div className="card">
+        <h2>Datos del viaje</h2>
+        <div className="grid c2">
+          <SelectorUnidad vehiculos={vehiculos} vehId={vehId} setVehId={setVehId} label="Interno *"/>
+          <div className="field">
+            <label>Chofer N°1</label>
+            <input readOnly value={user.nombre + (user.dni ? " · DNI " + user.dni : "")}/>
+          </div>
+          <div className="field">
+            <label>Chofer N°2 (opcional)</label>
+            <input value={chofer2} onChange={e=>setChofer2(e.target.value)} placeholder="Apellido y nombre"/>
+          </div>
+          <div className="field">
+            <label>Línea</label>
+            <select value={linea} onChange={e=>setLinea(e.target.value)}>
+              {LINEAS.map(l=><option key={l}>{l}</option>)}
+            </select>
+          </div>
+          <div className="field">
+            <label>Día</label>
+            <input type="date" value={fecha} onChange={e=>setFecha(e.target.value)}/>
+          </div>
+          <div className="field">
+            <label>Hora</label>
+            <input type="time" value={hora} onChange={e=>setHora(e.target.value)}/>
+          </div>
+          <div className="field" style={{gridColumn:"1 / -1"}}>
+            <label>Taller (opcional)</label>
+            <input value={taller} onChange={e=>setTaller(e.target.value)} placeholder="Nombre del taller" list="talleres"/>
+            <datalist id="talleres">{TALLERES_DEF.map(t=><option key={t} value={t}/>)}</datalist>
+          </div>
+        </div>
+      </div>
+      <div className="card">
+        <h2>Kilómetros</h2>
+        <div className="grid c3">
+          <div className="field">
+            <label>Kms. Iniciales * {kmFijado ? "(fijado por el último check)" : ""}</label>
+            <input className="mono" type="number" inputMode="numeric" value={kmIni}
+              readOnly={kmFijado}
+              onChange={e=>{ if(!kmFijado) setKmIni(e.target.value); }} placeholder="97107"/>
+          </div>
+          <div className="field">
+            <label>Kms. Finales *</label>
+            <input className="mono" type="number" inputMode="numeric" value={kmFin}
+              onChange={e=>setKmFin(e.target.value)} placeholder="97250"/>
+          </div>
+          <div>
+            <div className="kms-total mono">
+              {totalKms===null ? "—" : totalKms.toLocaleString("es-AR")}
+              <small>TOTAL KMS.</small>
+            </div>
+          </div>
+        </div>
+        {totalKms!==null && totalKms<0 &&
+          <div className="kms-alert">⚠ Los kms finales son menores que los iniciales.</div>}
+      </div>
+      <div className="card">
+        <h2>Tipo de planilla</h2>
+        <div className="toggle">
+          <button className={conNovedades ? "on-nov":""} onClick={()=>setConNovedades(true)}>
+            ● Planilla de novedades
+          </button>
+          <button className={!conNovedades ? "on-ok":""} onClick={()=>setConNovedades(false)}>
+            ✓ Planilla sin novedades
+          </button>
+        </div>
+      </div>
+      {conNovedades && (
+        <React.Fragment>
+          <div className="card">
+            <h2>Taller (varios)</h2>
+            <div className="chk-help">Marcá solamente los ítems que presentan <b>novedad u observación</b>. Cada novedad entra al panel como <b>correctiva</b> en Mantenimiento.</div>
+            <div className="chk-grid">
+              {ITEMS.map((it,i)=>(
+                <label key={i} className={"chk" + (marcados[i] ? " marked":"")}>
+                  <input type="checkbox" checked={!!marcados[i]} onChange={()=>toggleItem(i)}/>
+                  <span><span className="num">{String(i+1).padStart(2,"0")}</span> · {it}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+          <div className="card">
+            <h2>Comentarios del conductor al finalizar el viaje</h2>
+            {SECTORES.map(s=>(
+              <div className="sector" key={s}>
+                <label>{s}</label>
+                <textarea value={comentarios[s]||""} placeholder="Sin comentarios"
+                  onChange={e=>setComentarios(c=>({...c,[s]:e.target.value}))}/>
+              </div>
+            ))}
+          </div>
+          <Adjuntos adjuntos={adjuntos} setAdjuntos={setAdjuntos}/>
+        </React.Fragment>
+      )}
+      <div className="savebar">
+        <button className="btn" onClick={guardar} disabled={busy}>
+          {busy ? "Guardando..." : "Cargar informe de control (check)"}
+        </button>
+      </div>
+    </React.Fragment>
+  );
+}
+/* ================= CHAPA PATENTE / VEREDICTO ================= */
+function Chapa({patente, grande}){
+  if (!patente) return null;
+  const p = String(patente).toUpperCase().replace(/\s+/g," ").trim();
+  const fmtP = /^[A-Z]{2}\d{3}[A-Z]{2}$/.test(p.replace(/\s/g,""))
+    ? p.replace(/\s/g,"").replace(/^([A-Z]{2})(\d{3})([A-Z]{2})$/, "$1 $2 $3")
+    : /^[A-Z]{3}\d{3}$/.test(p.replace(/\s/g,""))
+      ? p.replace(/\s/g,"").replace(/^([A-Z]{3})(\d{3})$/, "$1 $2")
+      : p;
+  return (
+    <span className={"chapa" + (grande ? " grande" : "")}>
+      <span className="banda">República Argentina</span>
+      <span className="nro">{fmtP}</span>
+    </span>
+  );
+}
+function CabeceraUnidad({v}){
+  return (
+    <div className="unidad-head" style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,flexWrap:"wrap"}}>
+      <div>
+        {v.vehiculo ? <b>Interno {v.vehiculo}</b> : <b>{v.marca || "Unidad"}</b>}
+        <span>{[v.marca, v.modelo].filter(Boolean).join(" ")}</span>
+      </div>
+      <Chapa patente={v.patente}/>
+    </div>
+  );
+}
+function VeredictoCirculacion({v}){
+  const vencs = [
+    {nom:"VTV / RTO", f:v.vencimientoVTV},
+    {nom:"Seguro", f:v.vencimientoSeguro},
+    {nom:"Oblea / Habilitación", f:v.vencimientoOblea},
+  ];
+  const vencidos = vencs.filter(x => { const d = diasHasta(x.f); return d !== null && d < 0; });
+  const sinDato = vencs.filter(x => diasHasta(x.f) === null);
+  if (vencidos.length)
+    return <div className="veredicto mal">⛔ <div>NO está en condiciones de circular<small>{vencidos.map(x=>x.nom).join(" y ")} vencido{vencidos.length>1?"s":""}. Avisá al asesor antes de salir.</small></div></div>;
+  if (sinDato.length === vencs.length)
+    return <div className="veredicto duda">❓ <div>Sin datos de documentación<small>La unidad no tiene vencimientos cargados. Consultá con el asesor.</small></div></div>;
+  if (sinDato.length)
+    return <div className="veredicto duda">⚠️ <div>Documentación incompleta<small>Falta el dato de: {sinDato.map(x=>x.nom).join(", ")}. El resto está al día.</small></div></div>;
+  return <div className="veredicto ok">✅ <div>En condiciones de circular<small>Toda la documentación está al día.</small></div></div>;
+}
+function FilasVencimientos({v}){
+  return (
+    <React.Fragment>
+      <div className="venc-card">
+        <div><div className="nom">VTV / RTO</div><div className="fec">{fmtFecha(v.vencimientoVTV)}</div></div>
+        <ChipVenc fecha={v.vencimientoVTV}/>
+      </div>
+      <div className="venc-card">
+        <div><div className="nom">Seguro</div><div className="fec">{fmtFecha(v.vencimientoSeguro)}</div></div>
+        <ChipVenc fecha={v.vencimientoSeguro}/>
+      </div>
+      <div className="venc-card">
+        <div><div className="nom">Oblea / Habilitación</div><div className="fec">{fmtFecha(v.vencimientoOblea)}</div></div>
+        <ChipVenc fecha={v.vencimientoOblea}/>
+      </div>
+    </React.Fragment>
+  );
+}
+/* ================= VENCIMIENTOS + QR ================= */
+function ChipVenc({fecha, mini}){
+  const d = diasHasta(fecha);
+  const cls = "venc-chip" + (mini ? " mini" : "");
+  if (d === null) return <span className={cls + " na"}>sin dato</span>;
+  if (d < 0)  return <span className={cls + " vencido"}>VENCIDO hace {Math.abs(d)} día{Math.abs(d)===1?"":"s"}</span>;
+  if (d === 0) return <span className={cls + " vencido"}>VENCE HOY</span>;
+  if (d <= 30) return <span className={cls + " pronto"}>vence en {d} día{d===1?"":"s"}</span>;
+  return <span className={cls + " ok"}>faltan {d} días</span>;
+}
+function buscarUnidadPorClave(vehiculos, clave){
+  if (!clave) return null;
+  const k = String(clave).toUpperCase().replace(/\s/g,"");
+  return vehiculos.find(x =>
+    String(x.vehiculo||"").toUpperCase().replace(/\s/g,"") === k ||
+    String(x.patente||"").toUpperCase().replace(/\s/g,"") === k) || null;
+}
+function Vencimientos({datos, user, internoInicial}){
+  const vehiculos = datos.vehiculos || [];
+  const inicial = useMemo(()=>{
+    const v = buscarUnidadPorClave(vehiculos, internoInicial || INTERNO_QR);
+    return v ? String(v.id) : "";
+  },[vehiculos, internoInicial]);
+  const [vehId,setVehId] = useState(inicial);
+  useEffect(()=>{ if(inicial) setVehId(inicial); },[inicial]);
+  const v = vehiculos.find(x => mismoId(x.id, vehId));
+  return (
+    <React.Fragment>
+      <div className="card">
+        <h2>Documentación de la unidad</h2>
+        <div className="chk-help">Escaneá el <b>QR pegado en la unidad</b> con la cámara del teléfono y esta pantalla se abre sola con esa unidad. También podés elegirla a mano.</div>
+        <SelectorUnidad vehiculos={vehiculos} vehId={vehId} setVehId={setVehId} label="Unidad"/>
+        {v && (
+          <div style={{marginTop:14}}>
+            <CabeceraUnidad v={v}/>
+            <VeredictoCirculacion v={v}/>
+            <FilasVencimientos v={v}/>
+          </div>
+        )}
+      </div>
+      {user && user.vencLicencia ? (
+        <div className="card">
+          <h2>Tu licencia de conducir</h2>
+          <div className="venc-card">
+            <div><div className="nom">Licencia {user.licencia || ""}</div><div className="fec">{fmtFecha(user.vencLicencia)}</div></div>
+            <ChipVenc fecha={user.vencLicencia}/>
+          </div>
+        </div>
+      ) : null}
+        </React.Fragment>
+  );
+}
+/* ================= PEDIDOS DE INSUMOS ================= */
+function Pedidos({user, datos, empresaId, empresaNombre, demo, onSaved}){
+  const vehiculos = datos.vehiculos || [];
+  const insumos = (datos.insumos || []).filter(i => String(i.activo==null?"si":i.activo).toLowerCase() !== "no");
+  const [vehId,setVehId] = useState(vehiculos.length===1 ? String(vehiculos[0].id) : "");
+  const [busq,setBusq] = useState("");
+  const [carrito,setCarrito] = useState([]);   // {id, nombre, unidad, categoria, cantidad}
+  const [otro,setOtro] = useState("");
+  const [comentario,setComentario] = useState("");
+  const [toast,setToast] = useState(null);
+  const [busy,setBusy] = useState(false);
+  const mostrarToast = (msg, err=false) => { setToast({msg,err}); setTimeout(()=>setToast(null), 4000); };
+  const sinTilde = (s) => String(s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
+  const resultados = busq.trim()
+    ? insumos.filter(i => (sinTilde(i.nombre) + " " + sinTilde(i.categoria)).indexOf(sinTilde(busq.trim())) > -1).slice(0, 8)
+    : [];
+  const agregarAlPedido = (i) => {
+    setCarrito(c => c.find(x=>mismoId(x.id,i.id))
+      ? c.map(x=>mismoId(x.id,i.id) ? {...x, cantidad:x.cantidad+1} : x)
+      : [...c, {id:i.id, nombre:i.nombre, unidad:i.unidad||"", categoria:i.categoria||"", cantidad:1}]);
+  };
+  const cambiarCant = (id, delta) => setCarrito(c =>
+    c.map(x=>mismoId(x.id,id) ? {...x, cantidad:Math.max(0,x.cantidad+delta)} : x).filter(x=>x.cantidad>0));
+  const [confirmados,setConfirmados] = useState({});
+  const misPedidos = (datos.pedidos || [])
+    .filter(p => !p.dni || soloDigitos(p.dni) === soloDigitos(user.dni))
+    .sort((a,b)=>String(b.fecha||"").localeCompare(String(a.fecha||"")));
+  const estadoDe = (p) => confirmados[p.id] ? "recibido" : String(p.estado||"solicitado").toLowerCase().trim();
+  const PASOS_PED = ["solicitado","preparado","enviado","recibido"];
+  const ETIQ_PED = {solicitado:"Solicitado", preparado:"Preparado", enviado:"Enviado", recibido:"Recibido"};
+  const pasoDePedido = (e) => {
+    if (/recib/.test(e)) return 3;
+    if (/envi/.test(e)) return 2;
+    if (/prepar|aprob/.test(e)) return 1;
+    return 0;
+  };
+  const confirmarRecepcion = async (p) => {
+    setBusy(true);
+    const res = await enviarOEncolar("confirmarPedido", {id: p.id, dni: user.dni, fecha: hoy(), hora: horaAhora()}, demo);
+    setBusy(false);
+    setConfirmados(c => ({...c, [p.id]: true}));
+    mostrarToast(res.encolado
+      ? "📴 Sin señal: el visto bueno quedó guardado y sale solo con conexión."
+      : "✓ Recepción confirmada. ¡Gracias!");
+  };
+  const enviar = async () => {
+    const items = carrito.map(x=>({nombre:x.nombre, cantidad:x.cantidad, unidad:x.unidad||""}));
+    if (otro.trim()) items.push({nombre: otro.trim(), cantidad: 1, unidad: ""});
+    if (!items.length) return mostrarToast("Marcá al menos un insumo (o escribilo en 'Otro pedido').", true);
+    const pedido = {
+      empresa: empresaNombre, empresa_id: empresaId,
+      fecha: hoy(), hora: horaAhora(),
+      ...datosDeUnidad(vehiculos, vehId),
+      conductor: user.nombre, conductor_id: user.id, dni: user.dni,
+      items: items, comentario: comentario.trim(),
+      adjuntos: [],
+      timestamp: new Date().toISOString(),
+    };
+    setBusy(true);
+    const res = await enviarOEncolar("guardarPedido", pedido, demo);
+    setBusy(false);
+    onSaved({tipo:"pedido", interno:pedido.interno, fecha:pedido.fecha, hora:pedido.hora,
+      tipoPlanilla:"PEDIDO", items:[], descripcion: items.map(x=>x.cantidad+"× "+x.nombre).join(", "),
+      pendiente: !!res.encolado});
+    mostrarToast(res.encolado
+      ? "📴 Sin señal: el pedido quedó guardado y sale solo cuando haya conexión."
+      : "✓ Pedido enviado al pañol.");
+    setCarrito([]); setBusq(""); setOtro(""); setComentario("");
+  };
+  return (
+    <React.Fragment>
+      {toast && <div className={"toast" + (toast.err ? " err":"")}>{toast.msg}</div>}
+      <div className="card">
+        <h2>Pedir insumos</h2>
+        <div className="chk-help"><b>1.</b> Buscá el insumo o repuesto · <b>2.</b> Tocá «Agregar» · <b>3.</b> Abajo se arma <b>TU PEDIDO</b> con las cantidades.</div>
+        <SelectorUnidad vehiculos={vehiculos} vehId={vehId} setVehId={setVehId} label="Unidad (opcional)"/>
+        <div className="field" style={{marginTop:12}}>
+          <label>🔍 Buscá acá lo que necesitás</label>
+          <input value={busq} onChange={e=>setBusq(e.target.value)} placeholder="Ej: aceite, filtro, urea…"/>
+        </div>
+        <div style={{marginTop:10}}>
+          {insumos.length === 0 && <div className="empty">Todavía no hay insumos cargados en la planilla (hoja "Insumos").</div>}
+          {busq.trim() !== "" && resultados.length === 0 && insumos.length > 0 &&
+            <div className="empty">No encontré «{busq}» en el catálogo. Escribilo abajo en «Otro pedido» y va igual.</div>}
+          {resultados.map(i=>(
+            <div className="insumo" key={i.id}>
+              <div className="nom">{i.nombre}<small>{[i.categoria, i.unidad].filter(Boolean).join(" · ")}</small></div>
+              <button className="btn" style={{width:"auto",marginTop:0,padding:"10px 18px",fontSize:14}} onClick={()=>agregarAlPedido(i)}>＋ Agregar</button>
+            </div>
+          ))}
+        </div>
+        {carrito.length > 0 && (
+          <div style={{marginTop:14,border:"2px solid var(--green)",borderRadius:12,padding:"12px 12px 6px",background:"#f2f8f4"}}>
+            <div style={{fontSize:12,fontWeight:800,letterSpacing:".5px",color:"var(--green-dark)",marginBottom:8}}>
+              🧺 TU PEDIDO ({carrito.reduce((s,x)=>s+x.cantidad,0)} artículo(s)) — ajustá las cantidades con − y +
+            </div>
+            {carrito.map(x=>(
+              <div className="insumo con" key={x.id}>
+                <div className="nom">{x.nombre}<small>{[x.categoria, x.unidad].filter(Boolean).join(" · ")}</small></div>
+                <div className="cont">
+                  <button onClick={()=>cambiarCant(x.id,-1)}>−</button>
+                  <span className="n">{x.cantidad}</span>
+                  <button onClick={()=>cambiarCant(x.id,1)}>+</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+        <div className="field" style={{marginTop:10}}>
+          <label>Otro pedido (si no está en la lista)</label>
+          <input value={otro} onChange={e=>setOtro(e.target.value)} placeholder="Ej: escoba, trapo de piso"/>
+        </div>
+        <div className="field" style={{marginTop:10}}>
+          <label>Comentario (opcional)</label>
+          <textarea value={comentario} onChange={e=>setComentario(e.target.value)} placeholder="Aclaraciones para el pañol" style={{minHeight:56}}/>
+        </div>
+      </div>
+      <div className="card">
+        <h2>Mis pedidos</h2>
+        {misPedidos.length === 0 && <div className="empty">Todavía no hiciste pedidos.</div>}
+        {misPedidos.slice(0,15).map((p,i)=>{
+          const est = estadoDe(p);
+          const paso = pasoDePedido(est);
+          return (
+          <div className="item-lista" key={p.id||i}>
+            <div className="arriba">
+              <b>{fmtFecha(p.fecha)} {p.hora||""}</b>
+              <span className={"chip-est " + PASOS_PED[paso]}>{ETIQ_PED[PASOS_PED[paso]]}</span>
+            </div>
+            <div className="det">
+              {(Array.isArray(p.items) ? p.items.map(x=>(x.cantidad||1)+"× "+x.nombre).join(", ") : String(p.items||""))}
+              {p.respuesta ? <div><b>Respuesta del pañol:</b> {p.respuesta}</div> : null}
+            </div>
+            <div className="pasos mini">
+              {PASOS_PED.map((nombre,j)=>(
+                <div className={"paso" + (j < paso ? " hecho" : j === paso ? (paso === 3 ? " hecho" : " actual") : "")} key={nombre}>
+                  <div className="pto">{j < paso || paso === 3 ? "✓" : j+1}</div>
+                  <small>{ETIQ_PED[nombre]}</small>
+                </div>
+              ))}
+            </div>
+            {paso === 2 &&
+              <button className="btn" style={{marginTop:10}} disabled={busy} onClick={()=>confirmarRecepcion(p)}>
+                ✓ Recibí el pedido
+              </button>}
+          </div>
+          );
+        })}
+      </div>
+      <div className="savebar">
+        <button className="btn" onClick={enviar} disabled={busy}>{busy ? "Enviando..." : "Enviar pedido"}</button>
+      </div>
+    </React.Fragment>
+  );
+}
+/* ================= SEGUIMIENTO DE NOVEDADES (taller) ================= */
+const PASOS_OT = [
+  {ids:["programado","pendiente","inicio"], label:"Inicio"},
+  {ids:["en_progreso","en_proceso","en curso","proceso"], label:"En proceso"},
+  {ids:["completado","finalizado","fin","hecho"], label:"Finalizado"},
+];
+const pasoDeEstado = (estado) => {
+  const e = String(estado||"programado").toLowerCase();
+  for (let i = PASOS_OT.length - 1; i >= 0; i--){
+    if (PASOS_OT[i].ids.some(x => e.indexOf(x) > -1)) return i;
+  }
+  return 0;
+};
+function Seguimiento({user, datos}){
+  const vehiculos = datos.vehiculos || [];
+  const pref = "[" + String(user.nombre||"").toUpperCase().trim() + "]";
+  const [verTerminadas,setVerTerminadas] = useState(false);
+  const todas = (datos.mantenimiento || [])
+    .filter(m => String(m.descripcion||"").toUpperCase().trim().indexOf(pref) === 0)
+    .sort((a,b)=>String(b.fecha||"").localeCompare(String(a.fecha||"")));
+  const terminadas = todas.filter(m => pasoDeEstado(m.estado) >= 2).length;
+  const mias = todas.filter(m => verTerminadas || pasoDeEstado(m.estado) < 2);
+  const segDe = (m) => (datos.seguimientoOT || [])
+    .filter(s => mismoId(s.ot_id, m.id))
+    .sort((a,b)=>String(a.fecha||"").localeCompare(String(b.fecha||"")));
+  return (
+    <React.Fragment>
+      <div className="card">
+        <h2>Seguimiento de tus novedades</h2>
+        <div className="chk-help">Cada novedad que reportás pasa por el asesor técnico y el taller. Acá ves en qué está cada una. <b>Las que se terminan se archivan solas.</b></div>
+        {terminadas > 0 &&
+          <label style={{display:"flex",alignItems:"center",gap:8,fontSize:13,color:"var(--muted)",marginBottom:10,cursor:"pointer"}}>
+            <input type="checkbox" checked={verTerminadas} onChange={e=>setVerTerminadas(e.target.checked)}
+              style={{width:17,height:17,accentColor:"var(--green)"}}/>
+            Ver también las terminadas ({terminadas})
+          </label>}
+        {mias.length === 0 && <div className="empty">{todas.length === 0
+          ? 'Todavía no tenés novedades reportadas. Cuando mandes una desde "Reportar novedad" o el check, aparece acá.'
+          : "🎉 No tenés novedades en curso: las terminadas quedaron archivadas (casilla de arriba para verlas)."}</div>}
+        {mias.map((m,i)=>{
+          const v = vehiculos.find(x=>mismoId(x.id, m.vehiculo_id));
+          const paso = pasoDeEstado(m.estado);
+          const detalle = String(m.descripcion||"").replace(/^\[[^\]]*\]\s*/,"");
+          const comentarios = segDe(m);
+          return (
+            <div className="item-lista" key={m.id||i}>
+              <div className="arriba">
+                <b>{v ? [v.vehiculo ? "Interno " + v.vehiculo : "", v.patente || ""].filter(Boolean).join(" · ") : "Unidad"}</b>
+                <span style={{color:"var(--muted)",fontSize:12}}>{fmtFecha(m.fecha)}</span>
+              </div>
+              <div className="det"><TextoConLinks texto={detalle}/></div>
+              <div className="pasos">
+                {PASOS_OT.map((p,j)=>(
+                  <div className={"paso" + (j < paso ? " hecho" : j === paso ? (paso === 2 ? " hecho" : " actual") : "")} key={p.label}>
+                    <div className="pto">{j < paso || paso === 2 ? "✓" : j+1}</div>
+                    <small>{p.label}</small>
+                  </div>
+                ))}
+              </div>
+              {comentarios.map((c,k)=>(
+                <div className="coment" key={k}>
+                  <div className="f">{fmtFecha(c.fecha)}</div>
+                  {c.comentario}
+                </div>
+              ))}
+            </div>
+          );
+        })}
+      </div>
+    </React.Fragment>
+  );
+}
+/* ================= DIAGRAMAS (lavado y gasoil planificados) ================= */
+/* el estado del diagrama puede venir escrito de cualquier forma en la hoja:
+   "pendiente", "programado", "programdo", vacío... → todo eso es PENDIENTE */
+const estadoDiagramaNorm = (e) => {
+  const s = String(e||"").toLowerCase();
+  if (/hecho|finaliz|realizad|complet|listo/.test(s)) return "hecho";
+  if (/curso|inicia|proceso|progres/.test(s)) return "en_curso";
+  return "pendiente";
+};
+const iconoTarea = (t) => {
+  const s = String(t||"").toLowerCase();
+  if (/lav/.test(s)) return "🧼";
+  if (/gas|comb|carga/.test(s)) return "⛽";
+  if (/serv|mant/.test(s)) return "🔧";
+  return "📌";
+};
+function Diagramas({datos, user, demo}){
+  const vehiculos = datos.vehiculos || [];
+  const [vehId,setVehId] = useState("");
+  const [cambios,setCambios] = useState({});   // id -> estado nuevo (optimista)
+  const [toast,setToast] = useState(null);
+  const [busy,setBusy] = useState(false);
+  const mostrarToast = (msg, err=false) => { setToast({msg,err}); setTimeout(()=>setToast(null), 4000); };
+  const claveDe = (d) => String(d.id || "") || [d.fecha, d.interno, d.tarea, d.hora].map(x=>String(x||"")).join("|");
+  const marcar = async (d, accion) => {
+    setBusy(true);
+    const res = await enviarOEncolar("estadoDiagrama", {
+      id: d.id || "",
+      ref: {fecha: d.fecha, interno: d.interno, tarea: d.tarea, hora: d.hora},
+      accion, conductor: user.nombre, dni: user.dni
+    }, demo);
+    setBusy(false);
+    setCambios(c => ({...c, [claveDe(d)]: accion === "fin" ? "hecho" : "en_curso"}));
+    mostrarToast(res.encolado
+      ? "📴 Sin señal: quedó guardado y sale solo con conexión."
+      : (accion === "fin" ? "✓ Tarea finalizada. ¡Gracias!" : "▶ Tarea iniciada."));
+  };
+  const v = vehiculos.find(x=>mismoId(x.id, vehId));
+  const clave = v ? String(v.vehiculo||v.patente||"").toUpperCase().replace(/\s/g,"") : "";
+  const lista = (datos.diagramas || [])
+    .filter(d => !clave || String(d.interno||"").toUpperCase().replace(/\s/g,"") === clave ||
+                 (v && String(d.interno||"").toUpperCase().replace(/\s/g,"") === String(v.patente||"").toUpperCase().replace(/\s/g,"")))
+    .sort((a,b)=>String(a.fecha||"").localeCompare(String(b.fecha||"")));
+  const estadoDe = (d) => cambios[claveDe(d)] || estadoDiagramaNorm(d.estado);
+  const proximos = lista.filter(d => !d.fecha || String(d.fecha) >= hoy() || estadoDe(d) !== "hecho");
+  const esHoyD = (f) => String(f||"") === hoy();
+  return (
+    <React.Fragment>
+      {toast && <div className={"toast" + (toast.err ? " err":"")}>{toast.msg}</div>}
+      <div className="card">
+        <h2>Diagramas de la unidad</h2>
+        <div className="chk-help">Lavados y cargas de gasoil planificados con mantenimiento. Fijate qué le toca a tu unidad y cuándo.</div>
+        <SelectorUnidad vehiculos={vehiculos} vehId={vehId} setVehId={setVehId} label="Unidad (todas si no elegís)"/>
+        <div style={{marginTop:12}}>
+          {proximos.length === 0 && <div className="empty">No hay tareas programadas{v ? " para esta unidad" : ""}.</div>}
+          {proximos.map((d,i)=>{
+            const est = estadoDe(d);
+            return (
+            <div className="item-lista" key={claveDe(d)+"-"+i} style={esHoyD(d.fecha) ? {borderColor:"var(--amber)", background:"var(--amber-soft)"} : null}>
+              <div className="arriba">
+                <b>{iconoTarea(d.tarea)} {d.tarea || "Tarea"} · Interno {d.interno||"—"}</b>
+                <span className={"chip-est " + est}>{est === "en_curso" ? "en curso" : est === "hecho" ? "hecho" : "pendiente"}</span>
+              </div>
+              <div className="det">
+                {esHoyD(d.fecha) ? "HOY" : fmtFecha(d.fecha)}{d.hora ? " · " + d.hora + " hs" : ""}
+                {d.notas ? " · " + d.notas : ""}
+              </div>
+              {est === "pendiente" &&
+                <button className="btn" style={{marginTop:10}} disabled={busy} onClick={()=>marcar(d,"inicio")}>
+                  ▶ Iniciar tarea
+                </button>}
+              {est === "en_curso" &&
+                <button className="btn" style={{marginTop:10,background:"var(--green-dark)"}} disabled={busy} onClick={()=>marcar(d,"fin")}>
+                  ✔ Finalizar tarea
+                </button>}
+            </div>
+            );
+          })}
+        </div>
+      </div>
+    </React.Fragment>
+  );
+}
+/* ================= LECTOR DE QR (cámara) + FICHA DE UNIDAD ================= */
+/* Al escanear el QR de una unidad ASIGNADA, abre su documentación normal.
+   Si la unidad NO está asignada al conductor, consulta la ficha al servidor:
+   vencimientos + veredicto de circulación + reporte rápido con fotos/audio.
+   Así, al tomar servicio en una unidad ajena, sabe al toque si puede salir. */
+function FichaUnidadExterna({unidad, clave, user, empresaNombre, demo, onSaved, onOtra}){
+  const [descripcion,setDescripcion] = useState("");
+  const [adjuntos,setAdjuntos] = useState([]);
+  const [toast,setToast] = useState(null);
+  const [busy,setBusy] = useState(false);
+  const mostrarToast = (msg, err=false) => { setToast({msg,err}); setTimeout(()=>setToast(null), 4000); };
+  const v = unidad;   // puede ser null si no hubo señal para consultar
+  const enviar = async () => {
+    if (!descripcion.trim() && adjuntos.length === 0)
+      return mostrarToast("Escribí algo o adjuntá una foto o audio.", true);
+    const nov = {
+      origen: "novedad",
+      empresa: empresaNombre, empresa_id: (v && v.empresa_id) || "",
+      fecha: hoy(), hora: horaAhora(),
+      vehiculo_id: v ? v.id : "",
+      interno: (v && v.vehiculo) || clave || "",
+      patente: (v && v.patente) || clave || "",
+      conductor: user.nombre, conductor_id: user.id, dni: user.dni,
+      sector: "",
+      descripcion: (descripcion.trim() || "Reporte al tomar servicio") + " (unidad tomada por QR)",
+      adjuntos: adjuntos.map(a=>({tipo:a.tipo, nombre:a.nombre, mime:a.mime, base64:a.base64, url:a.url||""})),
+      timestamp: new Date().toISOString(),
+    };
+    setBusy(true);
+    const res = await enviarOEncolar("guardarNovedad", nov, demo);
+    setBusy(false);
+    onSaved({tipo:"novedad", interno:nov.interno, patente:nov.patente, fecha:nov.fecha, hora:nov.hora,
+      tipoPlanilla:"NOVEDAD", items:[], adjuntos:nov.adjuntos.length, descripcion:nov.descripcion,
+      pendiente: !!res.encolado});
+    mostrarToast(res.encolado
+      ? "📴 Sin señal: quedó guardado y sale solo cuando haya conexión."
+      : "✓ Enviado al taller. ¡Gracias!");
+    setDescripcion(""); setAdjuntos([]);
+  };
+  return (
+    <React.Fragment>
+      {toast && <div className={"toast" + (toast.err ? " err":"")}>{toast.msg}</div>}
+      <div className="card">
+        <h2>Unidad escaneada</h2>
+        {v
+          ? <React.Fragment>
+              <CabeceraUnidad v={v}/>
+              <VeredictoCirculacion v={v}/>
+              <FilasVencimientos v={v}/>
+              <div className="chk-help" style={{marginTop:8}}>Esta unidad no es de tus asignadas: la ves porque escaneaste su QR.</div>
+            </React.Fragment>
+          : <React.Fragment>
+              <div className="unidad-head" style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,flexWrap:"wrap"}}>
+                <div><b>Unidad {clave}</b><span>Sin conexión para consultar la ficha</span></div>
+                <Chapa patente={clave}/>
+              </div>
+              <div className="veredicto duda">📴 <div>No se pudo consultar la documentación<small>Sin señal o la unidad no está en la flota. Igual podés mandar el reporte: queda guardado y sale al volver la conexión.</small></div></div>
+            </React.Fragment>}
+        <button className="btn sec" style={{marginTop:10}} onClick={onOtra}>Escanear otra unidad</button>
+      </div>
+      <div className="card">
+        <h2>Reportar sobre esta unidad</h2>
+        <div className="chk-help">¿Tomás servicio en esta unidad y ves algo raro? Contalo, sacá una foto o mandá un audio: llega al taller con tu nombre.</div>
+        <div className="field">
+          <label>¿Qué observaste? (opcional si adjuntás algo)</label>
+          <textarea value={descripcion} onChange={e=>setDescripcion(e.target.value)}
+            placeholder="Ej: la tomo con el parabrisas rajado y 3/4 de gasoil"/>
+        </div>
+      </div>
+      <Adjuntos adjuntos={adjuntos} setAdjuntos={setAdjuntos}/>
+      <div className="savebar">
+        <button className="btn" onClick={enviar} disabled={busy}>
+          {busy ? "Enviando..." : "Enviar reporte de esta unidad"}
+        </button>
+      </div>
+    </React.Fragment>
+  );
+}
+function Escaner({vehiculos, user, empresaNombre, demo, onUnidad, onSaved}){
+  const videoRef = useRef(null);
+  const [error,setError] = useState("");
+  const [resultado,setResultado] = useState(null);
+  const [ficha,setFicha] = useState(null);        // {unidad|null, clave}
+  const [consultando,setConsultando] = useState(false);
+  useEffect(()=>{
+    if (resultado) return;   // ya leyó: no reabrir la cámara
+    let stream = null, timer = 0, activo = true;
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d", {willReadFrequently:true});
+    let detector = null;
+    try { if ("BarcodeDetector" in window) detector = new BarcodeDetector({formats:["qr_code"]}); } catch(e){ detector = null; }
+    const leer = async () => {
+      if (!activo) return;
+      const v = videoRef.current;
+      if (v && v.readyState === 4){
+        try{
+          if (detector){
+            const codes = await detector.detect(v);
+            if (codes && codes.length && codes[0].rawValue){ setResultado(codes[0].rawValue); return; }
+          } else if (typeof jsQR !== "undefined"){
+            canvas.width = v.videoWidth; canvas.height = v.videoHeight;
+            ctx.drawImage(v, 0, 0);
+            const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const code = jsQR(img.data, img.width, img.height);
+            if (code && code.data){ setResultado(code.data); return; }
+          } else {
+            setError("No se pudo cargar el lector de QR. Revisá la conexión y volvé a entrar a esta pantalla.");
+            return;
+          }
+        }catch(e){ /* frame malo: se reintenta */ }
+      }
+      timer = setTimeout(leer, 250);
+    };
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+      setError("Este navegador no permite usar la cámara. Probá con Chrome.");
+    } else {
+      navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}})
+        .then(s=>{
+          stream = s;
+          if (videoRef.current){
+            videoRef.current.srcObject = s;
+            videoRef.current.setAttribute("playsinline","true");
+            videoRef.current.play();
+          }
+          timer = setTimeout(leer, 400);
+        })
+        .catch(()=>setError("No se pudo abrir la cámara. Dale permiso a la cámara en el navegador y probá de nuevo."));
+    }
+    return ()=>{ activo = false; if (timer) clearTimeout(timer); if (stream) stream.getTracks().forEach(t=>t.stop()); };
+  },[resultado]);
+  useEffect(()=>{
+    if (!resultado) return;
+    let clave = resultado;
+    try{
+      const u = new URL(resultado);
+      const i = u.searchParams.get("interno");
+      if (i) clave = i;
+    }catch(e){ }
+    clave = String(clave).trim();
+    // 1) ¿es una de MIS unidades? → documentación normal
+    const propia = buscarUnidadPorClave(vehiculos, clave);
+    if (propia){ onUnidad(propia); return; }
+    // 2) unidad ajena → consultar la ficha al servidor
+    const consultar = async () => {
+      setConsultando(true);
+      try{
+        if (demo){
+          const v = buscarUnidadPorClave(DEMO.vehiculos, clave);
+          setFicha({unidad: v || null, clave});
+        } else {
+          let ses = null;
+          try { ses = JSON.parse(almacen.get("SESION")||"null"); } catch(e){ }
+          const r = await apiPost({action:"consultarUnidad", dni: ses ? ses.dni : "", pin: ses ? ses.pin : "", clave});
+          setFicha({unidad: (r && r.ok && r.vehiculo) ? r.vehiculo : null, clave});
+        }
+      }catch(e){
+        setFicha({unidad: null, clave});   // sin señal: ficha sin datos, reporte igual
+      }finally{ setConsultando(false); }
+    };
+    consultar();
+  },[resultado]);
+  const otra = () => { setFicha(null); setResultado(null); };
+  if (ficha){
+    return <FichaUnidadExterna unidad={ficha.unidad} clave={ficha.clave} user={user}
+      empresaNombre={empresaNombre} demo={demo} onSaved={onSaved} onOtra={otra}/>;
+  }
+  return (
+    <div className="card">
+      <h2>Escanear código QR</h2>
+      <div className="chk-help">Apuntá al QR pegado en la unidad. Si es tuya, se abre su documentación; si no, igual ves sus <b>vencimientos</b> y podés <b>reportar</b> sobre ella.</div>
+      {error && <div className="kms-alert">⚠ {error}</div>}
+      {consultando && <div className="sync-note">Consultando la unidad…</div>}
+      {!resultado && !error &&
+        <div className="escaner-marco">
+          <video ref={videoRef} muted playsInline/>
+          <div className="escaner-guia"><div></div></div>
+        </div>}
+    </div>
+  );
+}
+/* ================= CONTACTOS (asesor + contingencias) ================= */
+function TarjetaContacto({rol, clase, dato, sinTexto}){
+  const tel = String((dato && dato.tel) || "").trim();
+  const digitos = soloDigitos(tel);
+  const wsp = digitos ? "https://wa.me/" + (digitos.length <= 10 ? "54" + digitos : digitos) : "";
+  return (
+    <div className={"contacto-card " + clase}>
+      <div className="rol">{rol}</div>
+      {tel
+        ? <React.Fragment>
+            <div className="nom">{(dato && dato.nombre) || "—"} · {tel}</div>
+            <div className="contacto-botones">
+              <a className="btn-llamar" href={"tel:" + tel}>📞 Llamar</a>
+              {wsp ? <a className="btn-wsp" href={wsp} target="_blank" rel="noopener">💬 WhatsApp</a> : <span/>}
+            </div>
+          </React.Fragment>
+        : <div className="sin-contacto">Sin contacto cargado. Pedile a la oficina que complete tu fila en AsignacionUnidades.</div>}
+    </div>
+  );
+}
+function Contactos({contactos, onCerrar}){
+  const c = contactos || {};
+  return (
+    <div className="contactos-fondo" onClick={onCerrar}>
+      <div className="contactos-panel" onClick={e=>e.stopPropagation()}>
+        <h3>📞 Tus contactos</h3>
+        <TarjetaContacto rol="🧑‍🔧 Asesor de servicio" clase="asesor" dato={c.asesor}/>
+        <TarjetaContacto rol="🚨 Contingencias · Auxilio en ruta" clase="emergencia" dato={c.contingencia}/>
+        <button className="btn sec" style={{marginTop:2}} onClick={onCerrar}>Cerrar</button>
+      </div>
+    </div>
+  );
+}
+/* ================= PENDIENTES DE ENVÍO (modo campo) ================= */
+function Pendientes({colaN, setColaN}){
+  const cola = colaLeer();
+  const etiqueta = {guardarCheck:"Check del viaje", guardarNovedad:"Novedad / fotos", guardarPedido:"Pedido de insumos"};
+  return (
+    <div className="card">
+      <h2>Pendientes de envío</h2>
+      {cola.length === 0
+        ? <div className="empty">🎉 No hay nada pendiente: todo lo tuyo ya llegó a la planilla.</div>
+        : <React.Fragment>
+            <div className="chk-help">Esto quedó guardado en el teléfono porque no había señal. Se manda solo cuando vuelva la conexión, o forzalo ahora.</div>
+            {cola.map((it,i)=>(
+              <div className="item-lista" key={it.uid||i}>
+                <div className="arriba">
+                  <b>{etiqueta[it.action] || it.action}</b>
+                  <span style={{color:"var(--muted)",fontSize:12}}>{String(it.creado||"").slice(0,16).replace("T"," ")}</span>
+                </div>
+                <div className="det">
+                  {it.data && it.data.interno ? "Interno " + it.data.interno + " · " : ""}
+                  {it.data && it.data.descripcion ? it.data.descripcion :
+                   it.data && it.data.items ? it.data.items.map(x=>(x.cantidad||1)+"× "+x.nombre).join(", ") :
+                   it.data && it.data.tipoPlanilla ? it.data.tipoPlanilla : ""}
+                  {it.data && it.data.adjuntos && it.data.adjuntos.length ? " · 📎 " + it.data.adjuntos.length : ""}
+                </div>
+              </div>
+            ))}
+            <button className="btn" onClick={()=>procesarCola(setColaN)}>📡 Intentar enviar ahora</button>
+            <button className="btn sec" onClick={descargarPendientes}>💾 Descargar todo en un archivo</button>
+            <button className="btn sec" style={{color:"var(--red)",borderColor:"var(--red)"}}
+              onClick={()=>{ if(confirm("¿Seguro? Se borran los envíos pendientes de este teléfono. Hacelo solo si ya los descargaste en archivo.")){ colaGuardar([]); setColaN(0); } }}>
+              Vaciar la cola
+            </button>
+          </React.Fragment>}
+    </div>
+  );
+}
+/* ================= HISTORIAL ================= */
+function Historial({registros}){
+  if(!registros.length) return <div className="card"><h2>Mis envíos de hoy</h2>
+    <div className="empty">Todavía no enviaste nada en esta sesión.</div></div>;
+  return (
+    <div className="card">
+      <h2>Mis envíos de hoy</h2>
+      {registros.map((r,i)=>(
+        <div className="hist-item" key={i}>
+          <b>{r.interno || r.patente || "—"}</b> · {r.fecha} {r.hora}
+          {r.movimiento ? <span className="tag ok">{/SALIDA/i.test(r.movimiento) ? "🔼 salida" : "🔽 ingreso"}</span> : null}
+          {r.totalKms != null ? <span className="mono"> · {Number(r.totalKms).toLocaleString("es-AR")} km</span> : null}
+          <span className={"tag " + (r.tipoPlanilla==="SIN NOVEDADES" ? "ok":"nov")}>
+            {r.tipoPlanilla}{r.items && r.items.length ? ` (${r.items.length})` : ""}
+          </span>
+          {(() => { const n = Array.isArray(r.adjuntos) ? r.adjuntos.length : Number(r.adjuntos)||0;
+            return n ? <span className="tag ok">📎 {n}</span> : null; })()}
+          {r.pendiente ? <span className="tag nov">📴 pendiente</span> : null}
+          {r.descripcion ? <div style={{color:"var(--muted)",marginTop:4}}>{r.descripcion}</div> : null}
+        </div>
+      ))}
+    </div>
+  );
+}
+/* ================= AJUSTES (colores, logo, conexión) ================= */
+function Ajustes({marca, onCambio, onVolver}){
+  const [nombre,setNombre] = useState(marca.nombre);
+  const [cp,setCp] = useState(marca.colorPrimario);
+  const [ca,setCa] = useState(marca.colorAcento);
+  const [logo,setLogo] = useState(marca.logo);
+  const [url,setUrl] = useState(API_URL);
+  const refLogo = useRef(null);
+  const [toast,setToast] = useState(null);
+  const mostrarToast = (msg, err=false) => { setToast({msg,err}); setTimeout(()=>setToast(null), 3000); };
+  const vistaPrevia = {nombre, colorPrimario:cp, colorAcento:ca, logo};
+  const elegirLogo = async (e) => {
+    const f = e.target.files && e.target.files[0];
+    e.target.value = "";
+    if (!f) return;
+    try{
+      const c = await comprimirImagen(f, 256, 0.85);
+      setLogo(c.preview);
+    }catch(err){ alert(err.message || "No se pudo leer la imagen."); }
+  };
+  const guardar = () => {
+    almacen.set("MARCA_LOCAL", JSON.stringify({nombre, colorPrimario:cp, colorAcento:ca, logo}));
+    aplicarMarca(vistaPrevia);
+    onCambio();
+    mostrarToast("✓ Personalización guardada");
+    const u = url.trim();
+    if (u && u !== API_URL){
+      if (!/^https:\/\/script\.google\.com\//.test(u)){ mostrarToast("La URL del script no parece de Apps Script.", true); return; }
+      almacen.set("API_URL", u);
+      setTimeout(()=>location.reload(), 700);
+    }
+  };
+  const restablecer = () => {
+    almacen.del("MARCA_LOCAL");
+    onCambio();
+    onVolver();
+  };
+  return (
+    <React.Fragment>
+      {toast && <div className={"toast" + (toast.err ? " err":"")}>{toast.msg}</div>}
+      <div className="card">
+        <h2>Logo y nombre</h2>
+        <div style={{display:"flex",alignItems:"center",gap:14,marginBottom:14}}>
+          <Insignia marca={vistaPrevia} size={56}/>
+          <div style={{flex:1}}>
+            <button className="btn sec" style={{marginTop:0,padding:"9px"}} onClick={()=>refLogo.current.click()}>
+              {logo ? "Cambiar logo" : "Subir logo"}
+            </button>
+            {logo && <button className="btn sec" style={{marginTop:6,padding:"9px",color:"var(--red)",borderColor:"var(--red)"}} onClick={()=>setLogo("")}>Quitar logo</button>}
+          </div>
+        </div>
+        <input ref={refLogo} type="file" accept="image/*" style={{display:"none"}} onChange={elegirLogo}/>
+        <div className="field">
+          <label>Nombre de la app</label>
+          <input value={nombre} onChange={e=>setNombre(e.target.value)} placeholder="CheckFlota"/>
+        </div>
+      </div>
+      <div className="card">
+        <h2>Colores</h2>
+        <div className="grid c2">
+          <div className="field">
+            <label>Color principal</label>
+            <input type="color" value={cp} onChange={e=>setCp(e.target.value)} style={{height:46,padding:4}}/>
+          </div>
+          <div className="field">
+            <label>Color de acento</label>
+            <input type="color" value={ca} onChange={e=>setCa(e.target.value)} style={{height:46,padding:4}}/>
+          </div>
+        </div>
+        <div className="chk-help" style={{marginTop:10}}>
+          Si el panel tiene colores cargados en la pestaña <b>Marca</b>, la app los toma solos.
+          Lo que elijas acá los pisa <b>solo en este teléfono</b>.
+        </div>
+        <button className="btn sec" style={{marginTop:8}} onClick={restablecer}>Volver a los colores del panel</button>
+      </div>
+      {!/^https:\/\/script\.google\.com\//.test(API_URL_FIJA) &&
+      <div className="card">
+        <h2>Conexión</h2>
+        <div className="field">
+          <label>URL del script (/exec)</label>
+          <input value={url} onChange={e=>setUrl(e.target.value)} placeholder="https://script.google.com/macros/s/…/exec"/>
+        </div>
+      </div>}
+      <div className="savebar">
+        <button className="btn" onClick={guardar}>Guardar personalización</button>
+      </div>
+    </React.Fragment>
+  );
+}
+/* ================= HOME (estilo app de banco) ================= */
+function Home({user, empresaNombre, datos, colaN, irA, abrirContactos}){
+  const vehiculos = datos.vehiculos || [];
+  const pref = "[" + String(user.nombre||"").toUpperCase().trim() + "]";
+  const enProceso = (datos.mantenimiento||[]).filter(m =>
+    String(m.descripcion||"").toUpperCase().trim().indexOf(pref) === 0 &&
+    pasoDeEstado(m.estado) < 2).length;
+  const diagHoy = (datos.diagramas||[]).filter(d => String(d.fecha||"") === hoy() &&
+    estadoDiagramaNorm(d.estado) !== "hecho");
+  const proxDiag = (datos.diagramas||[])
+    .filter(d => String(d.fecha||"") >= hoy() && estadoDiagramaNorm(d.estado) !== "hecho")
+    .sort((a,b)=>String(a.fecha||"").localeCompare(String(b.fecha||"")))
+    .slice(0,3);
+  return (
+    <React.Fragment>
+      <div className="hero3">
+        <div className="saludo">Hola, {String(user.nombre||"").split(" ")[0] || user.nombre} 👋</div>
+        <div className="sub">{empresaNombre} · App del Conductor</div>
+      </div>
+      <div className="tarjeta-principal">
+        <div className="fila-info">
+          <div className="dato"><span>Tu licencia</span>{user.vencLicencia ? <ChipVenc fecha={user.vencLicencia} mini/> : <b>—</b>}</div>
+          <div className="dato"><span>En taller</span><b>{enProceso ? enProceso + " novedad(es)" : "—"}</b></div>
+          <div className="dato"><span>Hoy</span><b>{diagHoy.length ? diagHoy.map(d=>iconoTarea(d.tarea)).join(" ") : "—"}</b></div>
+        </div>
+        <div className="acciones">
+          <button className="accion" onClick={()=>irA("novedad")}><span className="ico">⚠️</span><b>Reportar novedad</b></button>
+          <button className="accion" onClick={()=>irA("media")}><span className="ico">🚐</span><b>Fotos de la unidad</b></button>
+          <button className="accion" onClick={()=>irA("pedidos")}><span className="ico">📦</span><b>Pedidos</b></button>
+          <button className="accion" onClick={()=>irA("venc")}><span className="ico">🪪</span><b>Documentación</b></button>
+        </div>
+      </div>
+      <div className="banda-sos" onClick={abrirContactos}>
+        <span className="ic">🚨</span>
+        <div style={{flex:1}}>
+          <b>¿Problema en ruta? Tocá acá</b>
+          <span>Llamá al asesor de servicio o a contingencias con un toque.</span>
+        </div>
+        <span style={{fontSize:20,color:"var(--red)"}}>📞</span>
+      </div>
+      {colaN > 0 &&
+        <div className="seccion">
+          <div className="item-lista" style={{borderColor:"var(--amber)",background:"var(--amber-soft)",cursor:"pointer"}} onClick={()=>irA("pendientes")}>
+            <b>📴 {colaN} envío(s) esperando señal</b>
+            <div className="det">Quedaron guardados en el teléfono. Tocá para ver o descargar.</div>
+          </div>
+        </div>}
+      {(()=>{
+        const avisos = (datos.pedidos||[]).filter(p => /prepar|envi/.test(String(p.estado||"").toLowerCase()) && !/recib/.test(String(p.estado||"").toLowerCase()));
+        if (!avisos.length) return null;
+        const enviados = avisos.filter(p=>/envi/.test(String(p.estado||"").toLowerCase())).length;
+        return (
+          <div className="seccion">
+            <div className="item-lista" style={{borderColor:"var(--green)",background:"#e7f4ec",cursor:"pointer"}} onClick={()=>irA("pedidos")}>
+              <b>📦 {enviados ? "¡Tu pedido está en camino!" : "Tu pedido está preparado"}</b>
+              <div className="det">{enviados ? "Cuando lo recibas, confirmalo desde Pedidos." : "El pañol ya lo armó. Tocá para ver los detalles."}</div>
+            </div>
+          </div>
+        );
+      })()}
+      <div className="seccion">
+        <div className="cabecera"><h3>Traslado de personal</h3><a onClick={()=>irA("ruta")}>Abrir →</a></div>
+        <div className="item-lista" style={{cursor:"pointer",borderColor:"var(--green)",background:"#e7f4ec"}} onClick={()=>irA("ruta")}>
+          <b>🗺️ Hoja de ruta de hoy</b>
+          <div className="det">Las paradas en orden y quién sube en cada una. Marcás si subió o no estaba, y la hora la pone el sistema.</div>
+        </div>
+      </div>
+      <div className="seccion">
+        <div className="cabecera"><h3>Seguimiento del taller</h3><a onClick={()=>irA("seguimiento")}>Ver todo →</a></div>
+        {enProceso === 0
+          ? <div className="item-lista"><div className="det">No tenés novedades en curso. Cuando reportes algo, acá seguís su reparación.</div></div>
+          : <div className="item-lista" style={{cursor:"pointer"}} onClick={()=>irA("seguimiento")}>
+              <b>🔧 {enProceso} novedad(es) en el taller</b>
+              <div className="det">Tocá para ver el avance y los comentarios del asesor.</div>
+            </div>}
+      </div>
+      <div className="seccion">
+        <div className="cabecera"><h3>Diagramas · lavado y gasoil</h3><a onClick={()=>irA("diagramas")}>Ver todo →</a></div>
+        {proxDiag.length === 0
+          ? <div className="item-lista"><div className="det">Sin tareas programadas por ahora.</div></div>
+          : proxDiag.map((d,i)=>(
+            <div className="item-lista" key={d.id||i} style={String(d.fecha||"")===hoy() ? {borderColor:"var(--amber)",background:"var(--amber-soft)"} : null}>
+              <div className="arriba">
+                <b>{iconoTarea(d.tarea)} {d.tarea} · Interno {d.interno||"—"}</b>
+                <span style={{color:"var(--muted)",fontSize:12}}>{String(d.fecha||"")===hoy() ? "HOY" : fmtFecha(d.fecha)}{d.hora ? " · "+d.hora : ""}</span>
+              </div>
+            </div>))}
+      </div>
+      <div className="seccion">
+        <div className="cabecera"><h3>Más</h3></div>
+        <div className="tiles">
+          <button className="tile" onClick={()=>irA("check")}>
+            <div className="ic g">📋</div><b>Check del viaje</b>
+            <span>Planilla completa con kilómetros e ítems.</span>
+          </button>
+          <button className="tile" onClick={()=>irA("historial")}>
+            <div className="ic b">🗂</div><b>Mis envíos</b>
+            <span>Todo lo que mandaste desde este teléfono.</span>
+          </button>
+          <button className="tile" onClick={()=>irA("biblioteca")}>
+            <div className="ic g">📚</div><b>Biblioteca</b>
+            <span>Manuales e instructivos de la operación.</span>
+          </button>
+        </div>
+      </div>
+    </React.Fragment>
+  );
+}
+/* ================= HOJA DE RUTA · estilo Uber (v5.3) =========================
+   El mapa ES la pantalla. Abajo, una sola tarjeta con la parada que viene y
+   un botón grande. El chofer no lee: mira el mapa y toca.
+
+   Mapa: Leaflet + OpenStreetMap. Gratis, sin cuenta y sin clave.
+   Ubicación en vivo: watchPosition del teléfono. El puntito azul es la unidad.
+   Todo funciona sin señal salvo los mosaicos del mapa: la hoja de ruta queda
+   guardada en el teléfono y lo que marca el chofer sale solo al reconectar.
+   ============================================================================= */
+
+/* Carga Leaflet una sola vez, cuando de verdad se abre el mapa. */
+let _leafletCargando = null;
+function cargarLeaflet(){
+  if (window.L) return Promise.resolve(window.L);
+  if (_leafletCargando) return _leafletCargando;
+  _leafletCargando = new Promise((listo, falla) => {
+    const css = document.createElement("link");
+    css.rel = "stylesheet";
+    css.href = "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css";
+    document.head.appendChild(css);
+    const js = document.createElement("script");
+    js.src = "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js";
+    js.onload = () => listo(window.L);
+    js.onerror = () => falla(new Error("no se pudo cargar el mapa"));
+    document.head.appendChild(js);
+  });
+  return _leafletCargando;
+}
+
+function ubicacionRapida(){
+  return new Promise((listo)=>{
+    if (!navigator.geolocation) return listo({});
+    let contestado = false;
+    const cortar = setTimeout(()=>{ if(!contestado){ contestado=true; listo({}); } }, 6000);
+    navigator.geolocation.getCurrentPosition(
+      (p)=>{ if(contestado) return; contestado=true; clearTimeout(cortar);
+             listo({lat:p.coords.latitude, lng:p.coords.longitude}); },
+      ()=>{ if(contestado) return; contestado=true; clearTimeout(cortar); listo({}); },
+      {enableHighAccuracy:true, timeout:6000, maximumAge:30000}
+    );
+  });
+}
+
+const rutaHoraAhora = () => {
+  const d = new Date(), p = (n)=> n<10 ? "0"+n : ""+n;
+  return p(d.getHours())+":"+p(d.getMinutes())+":"+p(d.getSeconds());
+};
+const rutaDos = (n)=> n<10 ? "0"+n : ""+n;
+const rutaEstLeer = (sid) => { try { return JSON.parse(almacen.get("RUTA_EST_"+sid)||"{}"); } catch(e){ return {}; } };
+const rutaEstGuardar = (sid, est) => { try { almacen.set("RUTA_EST_"+sid, JSON.stringify(est)); } catch(e){} };
+
+function HojaDeRuta({user, demo, onSaved, onVolver}){
+  const dni = soloDigitos(user.dni);
+  const [cargando,setCargando] = useState(true);
+  const [error,setError] = useState("");
+  const [servicio,setServicio] = useState(null);
+  const [paradas,setParadas] = useState([]);
+  const [trasbordos,setTrasbordos] = useState([]);
+  const [espera,setEspera] = useState(180);
+  const [offline,setOffline] = useState(false);
+  const [actual,setActual] = useState(0);
+  const [llegadas,setLlegadas] = useState({});
+  const [marcas,setMarcas] = useState({});
+  const [enviando,setEnviando] = useState("");
+  const [abierto,setAbierto] = useState(false);      // la tarjeta de abajo desplegada
+  const [tick,setTick] = useState(0);
+  const [miPos,setMiPos] = useState(null);
+  const [sinMapa,setSinMapa] = useState(false);
+  const desdeRef = useRef(null);
+  const mapaRef = useRef(null);
+  const objetos = useRef({ mapa:null, yo:null, paradas:[], linea:null });
+
+  /* ── traer la hoja de ruta ── */
+  const traer = async () => {
+    setCargando(true); setError(""); setOffline(false);
+    const clave = "RUTA_"+dni+"_"+hoy();
+    if (demo || !API_URL){ setCargando(false); setError("Modo demo: no hay servicio para mostrar."); return; }
+    const deCache = () => {
+      try { const c = JSON.parse(almacen.get(clave)||"null");
+        if (c && c.paradas){ aplicar(c); setOffline(true); return true; } } catch(e){}
+      return false;
+    };
+    if (!navigator.onLine){
+      setCargando(false);
+      if (!deCache()) setError("Sin señal y sin la hoja de ruta guardada en este teléfono. La primera vez hay que abrirla con internet.");
+      return;
+    }
+    try{
+      const r = await apiPost({action:"recServicioDelDia", data:{fecha:hoy(), dni:dni}});
+      setCargando(false);
+      if (!r || r.ok === false){ setError((r&&r.error)||"No se pudo traer la hoja de ruta."); return; }
+      if (!r.hay){ setServicio(null); setError(r.mensaje||"Hoy no tenés un servicio cargado."); return; }
+      try { almacen.set(clave, JSON.stringify(r)); } catch(e){}
+      aplicar(r);
+    }catch(e){
+      setCargando(false);
+      if (!deCache()) setError("No se pudo conectar. Probá de nuevo cuando tengas señal.");
+    }
+  };
+
+  const aplicar = (r) => {
+    setServicio(r.servicio); setParadas(r.paradas||[]);
+    setTrasbordos(r.trasbordos||[]); setEspera(r.espera_maxima_seg || 180);
+    const est = rutaEstLeer(r.servicio.id);
+    setLlegadas(est.llegadas || {}); setMarcas(est.marcas || {});
+    setActual(typeof est.actual === "number" ? est.actual : 0);
+  };
+
+  useEffect(()=>{ traer(); },[]);
+  useEffect(()=>{ if (servicio) rutaEstGuardar(servicio.id, {llegadas, marcas, actual}); },[llegadas, marcas, actual, servicio]);
+  useEffect(()=>{ const t = setInterval(()=>setTick(x=>x+1), 500); return ()=>clearInterval(t); },[]);
+
+  /* ── la unidad en vivo ── */
+  useEffect(()=>{
+    if (!navigator.geolocation) return;
+    const id = navigator.geolocation.watchPosition(
+      (p)=> setMiPos({lat:p.coords.latitude, lng:p.coords.longitude, precision:p.coords.accuracy}),
+      ()=>{}, {enableHighAccuracy:true, maximumAge:5000, timeout:15000}
+    );
+    return ()=> navigator.geolocation.clearWatch(id);
+  },[]);
+
+  /* ── dibujar el mapa ── */
+  const conCoords = paradas.filter(p => Number(p.lat) && Number(p.lng));
+  useEffect(()=>{
+    if (!servicio || !mapaRef.current) return;
+    let vivo = true;
+    cargarLeaflet().then(L => {
+      if (!vivo || !mapaRef.current) return;
+      const o = objetos.current;
+      if (!o.mapa){
+        o.mapa = L.map(mapaRef.current, {zoomControl:false, attributionControl:true})
+          .setView([-38.94, -68.06], 12);
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+          {maxZoom:19, attribution:"© OpenStreetMap"}).addTo(o.mapa);
+        L.control.zoom({position:"bottomleft"}).addTo(o.mapa);
+      }
+      /* paradas */
+      o.paradas.forEach(m => o.mapa.removeLayer(m)); o.paradas = [];
+      if (o.linea){ o.mapa.removeLayer(o.linea); o.linea = null; }
+      const puntos = [];
+      conCoords.forEach((p, i) => {
+        const idx = paradas.indexOf(p);
+        const hecha = !!llegadas[p.parada_id];
+        const esActual = idx === actual;
+        const color = hecha ? "#16A34A" : (esActual ? "#1f7a4d" : "#6B7580");
+        const etiqueta = p.letra || (String(p.tipo)==="destino" ? "🏭" : "•");
+        const icono = L.divIcon({ className:"", iconSize:[30,30], iconAnchor:[15,15],
+          html:'<div style="width:30px;height:30px;border-radius:50%;background:'+color+
+               ';color:#fff;display:flex;align-items:center;justify-content:center;font:800 14px Arial;'+
+               'border:'+(esActual?"3px solid #f5b52e":"2px solid #fff")+';box-shadow:0 1px 4px rgba(0,0,0,.4)">'+etiqueta+'</div>' });
+        const m = L.marker([Number(p.lat), Number(p.lng)], {icon:icono}).addTo(o.mapa);
+        m.bindPopup("<b>"+(p.letra?"Parada "+p.letra+" · ":"")+p.nombre+"</b><br>"+
+                    (p.hora_prevista||"")+"<br>"+(p.pasajeros||[]).map(x=>x.nombre).join("<br>"));
+        o.paradas.push(m);
+        puntos.push([Number(p.lat), Number(p.lng)]);
+      });
+      if (puntos.length > 1){
+        o.linea = L.polyline(puntos, {color:"#1f7a4d", weight:4, opacity:.65, dashArray:"6 6"}).addTo(o.mapa);
+      }
+      /* El mapa SIGUE a la parada que viene, como en Uber: siempre centrado
+         en lo próximo que tiene que hacer el chofer. Si esa parada no tiene
+         ubicación cargada, encuadra todo lo que sí tenga. */
+      const actualP = paradas[actual];
+      if (actualP && Number(actualP.lat) && Number(actualP.lng)){
+        o.mapa.setView([Number(actualP.lat), Number(actualP.lng)], 15, {animate:true});
+      } else if (puntos.length && !o._encuadro){
+        o.mapa.fitBounds(puntos, {padding:[50,50], maxZoom:15});
+        o._encuadro = true;
+      }
+      setTimeout(()=>{ try{ o.mapa.invalidateSize(); }catch(e){} }, 200);
+    }).catch(()=> setSinMapa(true));
+    return ()=>{ vivo = false; };
+  },[servicio, paradas, llegadas, actual]);
+
+  /* ── el puntito de la unidad ── */
+  useEffect(()=>{
+    const o = objetos.current;
+    if (!o.mapa || !miPos || !window.L) return;
+    const L = window.L;
+    if (!o.yo){
+      o.yo = L.circleMarker([miPos.lat, miPos.lng],
+        {radius:9, color:"#fff", weight:3, fillColor:"#2563eb", fillOpacity:1}).addTo(o.mapa);
+      o.yo.bindPopup("Tu unidad");
+    } else {
+      o.yo.setLatLng([miPos.lat, miPos.lng]);
+    }
+  },[miPos]);
+
+  if (cargando) return <div className="sync-note">Buscando tu hoja de ruta de hoy…</div>;
+
+  if (error && !servicio) return (
+    <div className="card">
+      <h2>Hoja de ruta</h2>
+      <p style={{fontSize:14.5,color:"var(--muted)",lineHeight:1.5}}>{error}</p>
+      <button className="btn sec" onClick={traer}>Volver a probar</button>
+    </div>
+  );
+
+  const totalPax = paradas.reduce((n,p)=> n + (p.pasajeros||[]).length, 0);
+  const hechos = Object.keys(marcas).length;
+  /* Si no hay paradas, esto NO está terminado: está vacío. Antes caía en
+     "Servicio terminado 0 y 0", que confunde a cualquiera. */
+  const sinParadas = !paradas.length;
+  const terminado = !sinParadas && actual >= paradas.length;
+
+  /* ── acciones ── */
+  const tocarLlegue = async (p) => {
+    setEnviando(p.parada_id);
+    const pos = miPos || await ubicacionRapida();
+    const hora = rutaHoraAhora();
+    desdeRef.current = Date.now();
+    setLlegadas(x => ({...x, [p.parada_id]: {hora}}));
+    setAbierto(true);
+    await enviarOEncolar("recMarcarPaso", {
+      servicio_id: servicio.id, fecha: servicio.fecha, parada_id: p.parada_id,
+      parada: (p.letra ? "Parada "+p.letra+" - " : "") + p.nombre,
+      hora_prevista: p.hora_prevista, hora_real: hora, resultado: "paso_con_pasajeros",
+      lat: pos.lat||"", lng: pos.lng||"", dni: dni, chofer: user.nombre
+    }, demo);
+    setEnviando("");
+  };
+
+  const nadieSube = async (p) => {
+    setEnviando(p.parada_id);
+    const pos = miPos || await ubicacionRapida();
+    const hora = rutaHoraAhora();
+    setLlegadas(x => ({...x, [p.parada_id]: {hora, salteada:true}}));
+    await enviarOEncolar("recMarcarPaso", {
+      servicio_id: servicio.id, fecha: servicio.fecha, parada_id: p.parada_id,
+      parada: (p.letra ? "Parada "+p.letra+" - " : "") + p.nombre,
+      hora_prevista: p.hora_prevista, hora_real: hora, resultado: "paso_sin_pasajeros",
+      lat: pos.lat||"", lng: pos.lng||"", dni: dni, chofer: user.nombre
+    }, demo);
+    setEnviando(""); setActual(a=>a+1); desdeRef.current = null; setAbierto(false);
+  };
+
+  const marcar = async (p, pa, resultado) => {
+    setEnviando(pa.pasajero_id);
+    const pos = miPos || await ubicacionRapida();
+    const hora = rutaHoraAhora();
+    const esperado = desdeRef.current ? Math.round((Date.now()-desdeRef.current)/1000) : "";
+    setMarcas(x => ({...x, [pa.pasajero_id]: {resultado, hora, espera:esperado}}));
+    await enviarOEncolar("recMarcarAscenso", {
+      servicio_id: servicio.id, fecha: servicio.fecha, parada_id: p.parada_id,
+      parada: (p.letra ? "Parada "+p.letra+" - " : "") + p.nombre,
+      pasajero_id: pa.pasajero_id, pasajero: pa.nombre, resultado: resultado,
+      hora_prevista: p.hora_prevista, hora_real: hora, espera_seg: esperado,
+      lat: pos.lat||"", lng: pos.lng||"", dni: dni, chofer: user.nombre
+    }, demo);
+    setEnviando("");
+  };
+
+  const siguiente = () => { setActual(a=>a+1); desdeRef.current = null; setAbierto(false); };
+
+  const cerrar = async () => {
+    setEnviando("cierre");
+    await enviarOEncolar("recCerrarServicio", {servicio_id: servicio.id, dni: dni}, demo);
+    setEnviando(""); setActual(paradas.length);
+    if (onSaved) onSaved({tipo:"Hoja de ruta", fecha:hoy(), hora:rutaHoraAhora(),
+      detalle:"Servicio "+(servicio.grupo||servicio.id)+" · "+Object.keys(marcas).length+" pasajero(s)"});
+  };
+
+  if (sinParadas) return (
+    <div className="card">
+      <h2>Sin paradas</h2>
+      <p style={{fontSize:14.5,color:"var(--muted)",lineHeight:1.5}}>
+        Tu servicio de hoy está cargado pero todavía no tiene paradas armadas. Avisale a la oficina.
+      </p>
+      <button className="btn sec" onClick={traer}>Volver a probar</button>
+    </div>
+  );
+
+  /* ── pantalla final ── */
+  if (terminado){
+    let subieron=0, faltaron=0;
+    Object.keys(marcas).forEach(k => marcas[k].resultado==="subio" ? subieron++ : faltaron++);
+    return (
+      <React.Fragment>
+        <div className="card">
+          <h2>Servicio terminado</h2>
+          <p style={{fontSize:13,color:"var(--muted)",fontWeight:600,margin:"0 0 6px"}}>
+            {(servicio.grupo || "Servicio") + " · " + fmtFecha(servicio.fecha)}
+          </p>
+          <div className="ruta-cuadros">
+            <div className="ruta-cuadro v"><b>{subieron}</b><span>SUBIERON</span></div>
+            <div className="ruta-cuadro r"><b>{faltaron}</b><span>NO ESTABAN</span></div>
+          </div>
+          <div className="ruta-detalle">
+            {paradas.map(p => {
+              const l = llegadas[p.parada_id];
+              return <div key={p.parada_id}>{p.letra ? "Parada "+p.letra : p.nombre} · {!l ? "— sin registrar" : (l.salteada ? "⏭ no se paró" : "✓ "+l.hora)}</div>;
+            })}
+          </div>
+        </div>
+        <button className="btn sec" onClick={() => {
+          if (!window.confirm("¿Empezar esta hoja de ruta de nuevo?\n\nSe borra solo lo marcado EN ESTE TELÉFONO y volvés a la primera parada. Lo que ya se mandó a la oficina queda registrado igual.")) return;
+          try { almacen.del("RUTA_EST_" + servicio.id); } catch(e){}
+          setLlegadas({}); setMarcas({}); setActual(0); desdeRef.current = null;
+        }}>↻ Empezar la hoja de ruta de nuevo</button>
+        <button className="btn sec" onClick={onVolver} style={{marginTop:10}}>Volver al inicio</button>
+      </React.Fragment>
+    );
+  }
+
+  const p = paradas[actual];
+  const yaLlegue = llegadas[p.parada_id] && !llegadas[p.parada_id].salteada;
+  const esPlanta = String(p.tipo) === "destino";
+  const pax = p.pasajeros || [];
+  const faltanMarcar = pax.filter(x => !marcas[x.pasajero_id]).length;
+  const tieneCoord = Number(p.lat) && Number(p.lng);
+
+  let crono = null;
+  if (yaLlegue && !esPlanta && desdeRef.current){
+    const pasado = Math.floor((Date.now()-desdeRef.current)/1000);
+    const queda = espera - pasado, vencido = queda < 0, v = Math.abs(queda);
+    crono = (
+      <div className={"ruta-crono"+(vencido?" vencido":"")}>
+        <div className="num">{(vencido?"+":"")+Math.floor(v/60)+":"+rutaDos(v%60)}</div>
+        <div className="txt">{vencido ? "Ya pasaron los "+Math.round(espera/60)+" minutos. Podés seguir." : "Esperá en la parada"}</div>
+      </div>
+    );
+  }
+
+  const comoLlegar = () => {
+    const destino = tieneCoord ? (p.lat + "," + p.lng) : p.nombre;
+    window.open("https://www.google.com/maps/dir/?api=1&destination=" + encodeURIComponent(destino) + "&travelmode=driving", "_blank");
+  };
+
+  return (
+    <div className="ruta-pantalla">
+      {offline && <div className="ruta-banda">📴 Estás viendo la hoja de ruta guardada. Lo que marques sale solo cuando vuelva la señal.</div>}
+
+      <div className="ruta-cabecera">
+        <div>
+          <b>{servicio.grupo || "Servicio de hoy"}</b>
+          <span>Parada {actual+1} de {paradas.length} · {hechos} de {totalPax} pasajeros</span>
+        </div>
+        <div className="ruta-riel"><i style={{width: Math.round(actual/paradas.length*100)+"%"}}/></div>
+      </div>
+
+      <div className="ruta-mapa-caja">
+        <div ref={mapaRef} className="ruta-mapa"/>
+        {(sinMapa || !conCoords.length) && (
+          <div className="ruta-mapa-vacio">
+            {sinMapa ? "No se pudo cargar el mapa. La hoja de ruta funciona igual."
+                     : "Las paradas de hoy todavía no tienen ubicación cargada. Avisale a la oficina para verlas en el mapa."}
+          </div>
+        )}
+      </div>
+
+      <div className={"ruta-hoja"+(abierto?" abierta":"")}>
+        <div className="ruta-agarre" onClick={()=>setAbierto(a=>!a)}><span/></div>
+
+        <div className="ruta-parada-cab">
+          <div className="letra">{p.letra || (esPlanta ? "🏭" : "📍")}</div>
+          <div className="txt">
+            <b>{(p.letra ? "Parada "+p.letra+" · " : "")+p.nombre}</b>
+            <span>{esPlanta ? "Llegada prevista "+(p.hora_prevista||"—")
+                  : (p.hora_prevista||"—")+" · "+pax.length+(pax.length===1?" pasajero":" pasajeros")}</span>
+          </div>
+          <button className="ruta-ir" onClick={comoLlegar}>Ir ▸</button>
+        </div>
+
+        {!yaLlegue ? (
+          <div className="ruta-acciones">
+            <button className="ruta-btn" disabled={enviando===p.parada_id}
+              onClick={()=> esPlanta ? (tocarLlegue(p), setTimeout(cerrar, 10)) : tocarLlegue(p)}>
+              {enviando===p.parada_id ? "Guardando…" : (esPlanta ? "🏭 Llegué a la planta" : "📍 Llegué a la parada")}
+            </button>
+            {!esPlanta && <button className="ruta-btn gris" disabled={enviando===p.parada_id} onClick={()=>nadieSube(p)}>
+              Nadie sube acá
+            </button>}
+          </div>
+        ) : (
+          <div className="ruta-acciones">
+            {crono}
+            <p className="ruta-rotulo">👤 ¿Quién subió acá?</p>
+            {pax.map(pa => {
+              const m = marcas[pa.pasajero_id];
+              return (
+                <div className={"ruta-pax"+(m?" resuelto":"")} key={pa.pasajero_id}>
+                  <div className="nom">
+                    {pa.nombre}
+                    {pa.trasbordo ? <span className="ruta-chip">Trasbordo {pa.trasbordo}</span> : null}
+                  </div>
+                  {pa.tel ? <a className="ruta-tel" href={"tel:"+String(pa.tel).replace(/[^0-9+]/g,"")}>📞 {pa.tel}</a> : null}
+                  {!m ? (
+                    <div className="ruta-par">
+                      <button className="si" disabled={enviando===pa.pasajero_id} onClick={()=>marcar(p,pa,"subio")}>✅ Subió</button>
+                      <button className="no" disabled={enviando===pa.pasajero_id} onClick={()=>marcar(p,pa,"no_estaba")}>❌ No estaba</button>
+                    </div>
+                  ) : (
+                    <div className={"ruta-marca "+(m.resultado==="subio"?"ok":"mal")}>
+                      <span>{m.resultado==="subio" ? "✅ Subió a las "+m.hora : "❌ No estaba · "+m.hora}</span>
+                      <button className="ruta-deshacer" onClick={()=>setMarcas(x=>{const c={...x}; delete c[pa.pasajero_id]; return c;})}>deshacer</button>
+                      {m.resultado!=="subio" && <small>{Number(m.espera) >= espera
+                        ? "Esperaste los "+Math.round(espera/60)+" minutos. Queda registrado que la unidad estuvo."
+                        : "Ojo: esperaste "+m.espera+" seg de los "+espera+" que corresponden."}</small>}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+            <button className="ruta-btn" onClick={siguiente}>
+              {faltanMarcar ? "Seguir igual ("+faltanMarcar+" sin marcar) →" : "Seguir a la próxima parada →"}
+            </button>
+          </div>
+        )}
+
+        {!!trasbordos.length && abierto && (
+          <div className="ruta-trasbordo">
+            {trasbordos.map(t => (
+              <div key={t.proveedor}>
+                <b>↔ Los trae {t.proveedor}</b>
+                <span>{(t.gente||[]).map(x=>x.nombre).join(", ")}{t.punto ? " · en "+t.punto : ""}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ================= BIBLIOTECA (v5.3.2) =================
+   Manuales e instructivos que la oficina marcó como visibles para los
+   conductores. Cada documento es un link (Drive) que se abre en el navegador.
+   Llega desde el conector v2.9.2+ en datosConductor. */
+function Biblioteca({datos}){
+  const docs = (datos.biblioteca || []);
+  const cats = [];
+  docs.forEach(d => {
+    const c = String(d.categoria || "Otros");
+    let g = cats.find(x => x.cat === c);
+    if (!g){ g = {cat:c, items:[]}; cats.push(g); }
+    g.items.push(d);
+  });
+  return (
+    <React.Fragment>
+      {docs.length === 0 && (
+        <div className="seccion"><div className="item-lista"><div className="det">
+          Todavía no hay manuales publicados. Cuando la oficina cargue documentos en la Biblioteca, los vas a ver acá.
+        </div></div></div>
+      )}
+      {cats.map(g => (
+        <div className="seccion" key={g.cat}>
+          <div className="cabecera"><h3>{g.cat}</h3></div>
+          {g.items.map((d,i)=>(
+            <a className="item-lista" key={d.id||i} href={d.url} target="_blank" rel="noopener noreferrer"
+               style={{display:"block",cursor:"pointer",textDecoration:"none",color:"inherit"}}>
+              <div className="arriba"><b>📄 {d.titulo}</b><span style={{color:"var(--muted)",fontSize:12}}>abrir →</span></div>
+              {d.notas ? <div className="det">{d.notas}</div> : null}
+            </a>
+          ))}
+        </div>
+      ))}
+      <div className="seccion"><div className="item-lista"><div className="det">
+        Los documentos se abren desde Drive: hace falta señal para verlos. Si un link no abre, avisale a la oficina.
+      </div></div></div>
+    </React.Fragment>
+  );
+}
+/* ================= APP v3 ================= */
+const TITULOS = {check:"Check del viaje", novedad:"Reportar novedad", media:"Fotos de la unidad",
+  venc:"Unidad · Documentación", historial:"Mis envíos", ajustes:"Personalización",
+  pedidos:"Pedidos de insumos", seguimiento:"Seguimiento del taller", diagramas:"Diagramas",
+  escaner:"Escanear QR", pendientes:"Pendientes de envío", biblioteca:"Biblioteca",
+  ruta:"Hoja de ruta"};
+function App(){
+  const modoDemo = !API_URL;
+  const [datos,setDatos] = useState(null);
+  const [cargando,setCargando] = useState(false);
+  const [errorCarga,setErrorCarga] = useState("");
+  const [fechaCache,setFechaCache] = useState("");
+  const [user,setUser] = useState(null);
+  const [vista,setVista] = useState(INTERNO_QR ? "venc" : "home");
+  const [internoSel,setInternoSel] = useState(INTERNO_QR || "");
+  const [registros,setRegistros] = useState([]);
+  const [colaN,setColaN] = useState(colaLeer().length);
+  const [marcaTick,setMarcaTick] = useState(0);
+  const [verContactos,setVerContactos] = useState(false);
+  const [arrancando,setArrancando] = useState(()=>{ try{ return !!JSON.parse(almacen.get("SESION")||"null"); }catch(e){ return false; } });
+  const marca = marcaFinal(datos);
+  useEffect(()=>{ aplicarMarca(marca); },[datos, marcaTick]);
+  const alEntrar = (r) => {
+    setUser(r.conductor);
+    setDatos(r.datos);
+    setRegistros(registrosLeer(soloDigitos(r.conductor.dni)));
+    setFechaCache(r.fecha || "");
+    setErrorCarga(r.offline ? "Sin conexión: estás viendo lo último sincronizado en este teléfono." : "");
+  };
+  const refrescar = async () => {
+    let ses = null;
+    try { ses = JSON.parse(almacen.get("SESION")||"null"); } catch(e){ }
+    if (!ses || !ses.dni){ setArrancando(false); return; }
+    setCargando(true);
+    const r = await loginConductor(ses.dni, ses.pin);
+    setCargando(false); setArrancando(false);
+    if (r.error){
+      if (/PIN|conductor/i.test(r.error)){ almacen.del("SESION"); setUser(null); setDatos(null); }
+      else setErrorCarga(r.error);
+      return;
+    }
+    alEntrar(r);
+  };
+  /* al abrir: retomar sesión; cola: al reconectar y cada 1 minuto */
+  useEffect(()=>{
+    refrescar();
+    procesarCola(setColaN);
+    const alConectar = () => { procesarCola(setColaN); refrescar(); };
+    window.addEventListener("online", alConectar);
+    const timer = setInterval(()=>procesarCola(setColaN), 60000);
+    return ()=>{ window.removeEventListener("online", alConectar); clearInterval(timer); };
+  },[]);
+  if (arrancando) return (
+    <div className="login-wrap"><div className="login-card" style={{textAlign:"center"}}>
+      <div className="brand" style={{justifyContent:"center"}}><Insignia marca={marca}/><h1>{marca.nombre}</h1></div>
+      <p style={{marginTop:16,color:"var(--muted)"}}>Entrando…</p>
+    </div></div>
+  );
+  if (!user || !datos){
+    return <Login marca={marca} demo={modoDemo} onLogin={alEntrar}/>;
+  }
+  const empresas = datos.empresas || [];
+  const empActiva = empresas.find(e=>esActivo(e.estado)) || empresas[0] || null;
+  const empresaId = empActiva ? empActiva.id : 1;
+  const empresaNombre = (empActiva && empActiva.nombre) || (datos.marca && datos.marca.nombreSistema) || "Mi empresa";
+  const datosEmpresa = {
+    ...datos,
+    vehiculos: (datos.vehiculos||[]).filter(v => !/inactivo|suspendido/.test(String(v.estado||"").toLowerCase())),
+  };
+  const yo = datos.conductor || user;
+  const salir = () => { setUser(null); setDatos(null); almacen.del("SESION"); setVista("home"); };
+  const alGuardar = (inf) => setRegistros(registrosAgregar(soloDigitos(yo.dni), inf));
+  const abrirUnidad = (v) => { setInternoSel(String(v.vehiculo || v.patente || "")); setVista("venc"); };
+  return (
+    <React.Fragment>
+      <div className="topbar">
+        <div className="tt">
+          <Insignia marca={marca} size={34}/>
+          <div className="who">
+            <span className="emp">{empresaNombre}</span>
+            <b>{yo.nombre}</b>
+          </div>
+        </div>
+        <div style={{display:"flex",gap:8}}>
+          <button className="link-btn btn-tel-top" onClick={()=>setVerContactos(true)}>📞</button>
+          <button className="link-btn" onClick={refrescar} style={{background:"var(--green)",borderColor:"var(--green)",color:"#fff",fontWeight:800,fontSize:13,padding:"8px 13px"}}>⟳ Actualizar</button>
+          <button className="link-btn" onClick={()=>setVista("ajustes")}>⚙️</button>
+          <button className="link-btn" onClick={salir}>Salir</button>
+        </div>
+      </div>
+      {errorCarga && <div className="offline-band" style={{background:"var(--amber-soft)",color:"#7a5b10"}}>
+        📴 {errorCarga}{fechaCache ? " (" + fmtFecha(fechaCache.slice(0,10)) + ")" : ""} <a style={{cursor:"pointer",textDecoration:"underline"}} onClick={refrescar}>Reintentar</a>
+      </div>}
+      {modoDemo && <div className="offline-band" style={{background:"var(--amber-soft)",color:"#7a5b10"}}>Modo demo: nada se guarda en la planilla.</div>}
+      {colaN > 0 && vista !== "pendientes" && vista !== "home" &&
+        <div className="offline-band" style={{background:"var(--amber-soft)",color:"#7a5b10",cursor:"pointer"}} onClick={()=>setVista("pendientes")}>
+          📴 {colaN} envío(s) guardados esperando señal — tocá para ver
+        </div>}
+      {verContactos && <Contactos contactos={datos.contactos} onCerrar={()=>setVerContactos(false)}/>}
+      {vista !== "home" && vista !== "ruta" &&
+        <div className="back-row">
+          <button className="back-btn" onClick={()=>setVista("home")}>← Volver</button>
+          <div className="screen-title">{TITULOS[vista] || ""}</div>
+        </div>}
+      <div className={vista === "home" || vista === "ruta" ? "" : "container"} style={vista === "home" ? {paddingBottom:"calc(var(--nav-h) + 30px)"} : null}>
+        {cargando && vista !== "home" && <div className="sync-note">Actualizando tus datos…</div>}
+        {vista==="home" && <Home user={yo} empresaNombre={empresaNombre} datos={datosEmpresa} colaN={colaN} irA={setVista} abrirContactos={()=>setVerContactos(true)}/>}
+        {vista==="check" &&
+          <CheckForm user={yo} datos={datosEmpresa} empresaId={empresaId} empresaNombre={empresaNombre}
+            demo={modoDemo} onSaved={alGuardar}/>}
+        {vista==="novedad" &&
+          <NovedadRapida user={yo} datos={datosEmpresa} empresaId={empresaId} empresaNombre={empresaNombre}
+            demo={modoDemo} modo="novedad" onSaved={alGuardar} onVolver={()=>setVista("home")}/>}
+        {vista==="media" &&
+          <NovedadRapida user={yo} datos={datosEmpresa} empresaId={empresaId} empresaNombre={empresaNombre}
+            demo={modoDemo} modo="media" onSaved={alGuardar} onVolver={()=>setVista("home")}/>}
+        {vista==="pedidos" &&
+          <Pedidos user={yo} datos={datosEmpresa} empresaId={empresaId} empresaNombre={empresaNombre}
+            demo={modoDemo} onSaved={alGuardar}/>}
+        {vista==="seguimiento" && <Seguimiento user={yo} datos={datosEmpresa}/>}
+        {vista==="diagramas" && <Diagramas datos={datosEmpresa} user={yo} demo={modoDemo}/>}
+        {vista==="biblioteca" && <Biblioteca datos={datosEmpresa}/>}
+        {vista==="ruta" && <HojaDeRuta user={yo} demo={modoDemo} onSaved={alGuardar} onVolver={()=>setVista("home")}/>}
+        {vista==="venc" && <Vencimientos datos={datosEmpresa} user={yo} internoInicial={internoSel}/>}
+        {vista==="escaner" && <Escaner vehiculos={datosEmpresa.vehiculos} user={yo} empresaNombre={empresaNombre}
+          demo={modoDemo} onUnidad={abrirUnidad} onSaved={alGuardar}/>}
+        {vista==="pendientes" && <Pendientes colaN={colaN} setColaN={setColaN}/>}
+        {vista==="historial" && <Historial registros={registros}/>}
+        {vista==="ajustes" && <Ajustes marca={marca} onCambio={()=>setMarcaTick(t=>t+1)} onVolver={()=>setVista("home")}/>}
+      </div>
+      <div className="bottomnav">
+        <button className={vista==="home"?"act":""} onClick={()=>setVista("home")}><span className="ic">🏠</span>Inicio</button>
+        <button className={vista==="check"?"act":""} onClick={()=>setVista("check")}><span className="ic">📋</span>Check</button>
+        <div className="nav-qr">
+          <button onClick={()=>setVista("escaner")}>▣</button>
+          <small>QR</small>
+        </div>
+        <button className={vista==="seguimiento"?"act":""} onClick={()=>setVista("seguimiento")}><span className="ic">🔧</span>Taller</button>
+        <button className={vista==="pedidos"?"act":""} onClick={()=>setVista("pedidos")}><span className="ic">📦</span>Pedidos</button>
+      </div>
+    </React.Fragment>
+  );
+}
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>
