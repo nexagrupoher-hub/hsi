@@ -9407,13 +9407,28 @@ const Recorridos = ({ vehiculos, conductores, empresaActiva, recPadron, recServi
     const clave = (p) => pgNorm(recNomComp(p));
     const errores = [];
     let nuevos = 0, actualizados = 0;
+    /* v6.3 — si el archivo nombra un grupo que todavía no existe, SE CREA.
+       Antes el pasajero entraba sin grupo y había que armarlos a mano uno
+       por uno antes de importar, que es al revés de como uno trabaja:
+       primero tenés la lista, después descubrís qué grupos hay. */
+    let gruposNuevos = grupos.slice();
+    const gruposCreados = [];
     (filas || []).forEach((f, i) => {
       const nomGrupo = String(f.grupo || "").trim();
       let gid = "";
       if (nomGrupo) {
-        const g = grupos.find(x => pgNorm(x.nombre) === pgNorm(nomGrupo));
-        gid = g ? g.id : "";
-        if (!g) errores.push(`Fila ${i + 2}: el grupo "${nomGrupo}" no existe todavía, el pasajero quedó sin grupo.`);
+        let g = gruposNuevos.find(x => pgNorm(x.nombre) === pgNorm(nomGrupo));
+        if (!g) {
+          g = { id: "gr_" + pgId(), nombre: nomGrupo, destino: String(f.hasta || "").trim(),
+                hora: "", unidad: "", chofer: "", nota: "", activo: true };
+          gruposNuevos.push(g);
+          gruposCreados.push(nomGrupo);
+        } else if (!String(g.destino || "").trim() && String(f.hasta || "").trim()) {
+          /* el grupo existía sin destino: se lo completamos con el del archivo */
+          g = { ...g, destino: String(f.hasta).trim() };
+          gruposNuevos = gruposNuevos.map(x => x.id === g.id ? g : x);
+        }
+        gid = g.id;
       }
       const fila = {
         nombre: String(f.nombre || "").trim(), apellido: String(f.apellido || "").trim(),
@@ -9438,9 +9453,12 @@ const Recorridos = ({ vehiculos, conductores, empresaActiva, recPadron, recServi
       }
     });
     if (!nuevos && !actualizados) return { agregados: 0, errores: errores.length ? errores : ["No se importó ninguna fila."] };
+    if (gruposCreados.length) setGrupos(gruposNuevos);
     setPadron(salida);
-    setAvisoPadron(`Padrón actualizado: ${nuevos} pasajero(s) nuevo(s) y ${actualizados} actualizado(s).`);
-    setTimeout(() => setAvisoPadron(""), 8000);
+    setAvisoPadron(`Padrón actualizado: ${nuevos} pasajero(s) nuevo(s) y ${actualizados} actualizado(s).` +
+      (gruposCreados.length ? ` Se crearon ${gruposCreados.length} grupo(s): ${gruposCreados.join(", ")}.` : ""));
+    setTimeout(() => setAvisoPadron(""), 12000);
+    if (gruposCreados.length) errores.push("Se crearon estos grupos nuevos porque el archivo los nombraba: " + gruposCreados.join(" · ") + ". Revisalos en la solapa «1 · Grupos» y ponéles horario, unidad y chofer.");
     return { agregados: nuevos + actualizados, errores: errores };
   };
 
@@ -9769,7 +9787,7 @@ const Recorridos = ({ vehiculos, conductores, empresaActiva, recPadron, recServi
               }}
               style={{ padding: "7px 14px", borderRadius: 8, border: "1.5px solid var(--c-primario)", background: "#fff", color: "var(--c-primario)", fontSize: 12.5, fontWeight: 700, cursor: "pointer" }}>Credenciales con QR</button>
             <ImportarMasivo nombre="Pasajeros" textoBoton="Carga masiva"
-              ayuda="Una fila por pasajero. Lo único obligatorio es el apellido. La columna «Grupo» tiene que decir el nombre exacto de un grupo ya creado; si no existe, el pasajero entra igual pero sin grupo. Si el apellido y nombre ya están, esa fila se actualiza en vez de duplicarse. Lat y Lng son opcionales: si las traés, las paradas ya salen en el mapa del chofer sin tener que buscarlas."
+              ayuda="Una fila por pasajero. Lo único obligatorio es el apellido. La columna «Grupo» puede nombrar un grupo que todavía no exista: se crea solo, con el destino de la columna «Hasta». Si el apellido y nombre ya están, esa fila se actualiza en vez de duplicarse. Lat y Lng son opcionales: si las traés, las paradas ya salen en el mapa del chofer sin tener que buscarlas."
               ejemplo={{ apellido: "Garcia", nombre: "Federico", celular: "2914482132", direccion: "Mathos Rodriguez 18, Cipolletti", grupo: "Planta Tratayen Cipolleti Dia", hasta: "Planta Tratayen", hora: "05:50", trasbordo: "", lat: "-38.9339", lng: "-67.9903" }}
               columnas={[
                 { campo: "apellido", etiqueta: "Apellido", requerido: true, alias: ["apellidos"] },
