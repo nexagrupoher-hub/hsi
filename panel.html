@@ -8243,6 +8243,480 @@ const recNormalizarPasajero = (x) => {
   return { ...x, nombre: nombre, apellido: apellido };
 };
 
+/* ══════════════════════════════════════════════════════════════════════════
+   GENERADOR DE QR — escrito acá adentro a propósito.
+   No depende de internet ni de ninguna librería: la credencial se imprime
+   igual aunque la computadora de la oficina esté sin conexión.
+   Modo byte, corrección de errores Q (aguanta ~25% de la tarjeta arruinada,
+   que para algo que va en el bolsillo todos los días no sobra), versiones
+   1 a 10 (hasta 100 caracteres, de sobra para "HSI-<id>-<código>").
+   ══════════════════════════════════════════════════════════════════════════ */
+const QR = (() => {
+  /* ── Aritmética de Galois GF(256), la que usa Reed-Solomon ── */
+  const EXP = new Uint8Array(512), LOG = new Uint8Array(256);
+  (() => { let x = 1;
+    for (let i = 0; i < 255; i++) { EXP[i] = x; LOG[x] = i; x <<= 1; if (x & 0x100) x ^= 0x11D; }
+    for (let i = 255; i < 512; i++) EXP[i] = EXP[i - 255];
+  })();
+  const mul = (a, b) => (a === 0 || b === 0) ? 0 : EXP[LOG[a] + LOG[b]];
+
+  /* Polinomio generador de n codewords de corrección */
+  const generador = (n) => {
+    let g = [1];
+    for (let i = 0; i < n; i++) {
+      const nuevo = new Array(g.length + 1).fill(0);
+      for (let j = 0; j < g.length; j++) {
+        nuevo[j] ^= g[j];
+        nuevo[j + 1] ^= mul(g[j], EXP[i]);
+      }
+      g = nuevo;
+    }
+    return g;
+  };
+
+  const ecc = (datos, n) => {
+    const g = generador(n);
+    const r = new Array(n).fill(0);
+    for (let i = 0; i < datos.length; i++) {
+      const f = datos[i] ^ r[0];
+      r.shift(); r.push(0);
+      if (f !== 0) for (let j = 0; j < n; j++) r[j] ^= mul(g[j + 1], f);
+    }
+    return r;
+  };
+
+  /* ── Tablas del estándar, versiones 1 a 10 ── */
+  const TOTAL = [0, 26, 44, 70, 100, 134, 172, 196, 242, 292, 346];
+  /* nivel Q: [ecPorBloque, bloques1, datos1, bloques2, datos2] */
+  const BLOQUES_Q = [null,
+    [13, 1, 13, 0, 0], [22, 1, 22, 0, 0], [18, 2, 17, 0, 0], [26, 2, 24, 0, 0],
+    [18, 2, 15, 2, 16], [24, 4, 19, 0, 0], [18, 2, 14, 4, 15], [22, 4, 18, 2, 19],
+    [20, 4, 16, 4, 17], [24, 6, 19, 2, 20]];
+  const ALINEACION = [null, [], [6, 18], [6, 22], [6, 26], [6, 30], [6, 34],
+    [6, 22, 38], [6, 24, 42], [6, 26, 46], [6, 28, 50]];
+  const INFO_VERSION = { 7: 0x07C94, 8: 0x085BC, 9: 0x09A99, 10: 0x0A4D3 };
+
+  const capacidadDatos = (v) => {
+    const b = BLOQUES_Q[v];
+    return b[1] * b[2] + b[3] * b[4];
+  };
+
+  /* ── Texto → bits ── */
+  const aBytes = (txt) => {
+    const out = [];
+    for (const ch of String(txt)) {
+      const c = ch.codePointAt(0);
+      if (c < 0x80) out.push(c);
+      else if (c < 0x800) out.push(0xC0 | (c >> 6), 0x80 | (c & 63));
+      else if (c < 0x10000) out.push(0xE0 | (c >> 12), 0x80 | ((c >> 6) & 63), 0x80 | (c & 63));
+      else out.push(0xF0 | (c >> 18), 0x80 | ((c >> 12) & 63), 0x80 | ((c >> 6) & 63), 0x80 | (c & 63));
+    }
+    return out;
+  };
+
+  const codewords = (txt, v) => {
+    const bytes = aBytes(txt);
+    const bitsCuenta = v < 10 ? 8 : 16;
+    const bits = [];
+    const push = (val, n) => { for (let i = n - 1; i >= 0; i--) bits.push((val >> i) & 1); };
+    push(4, 4);                    // modo byte
+    push(bytes.length, bitsCuenta);
+    bytes.forEach(b => push(b, 8));
+    const cap = capacidadDatos(v) * 8;
+    if (bits.length > cap) return null;
+    for (let i = 0; i < 4 && bits.length < cap; i++) bits.push(0);   // terminador
+    while (bits.length % 8) bits.push(0);
+    const relleno = [0xEC, 0x11];
+    let k = 0;
+    while (bits.length < cap) { push(relleno[k++ % 2], 8); }
+    const cw = [];
+    for (let i = 0; i < bits.length; i += 8) {
+      let b = 0;
+      for (let j = 0; j < 8; j++) b = (b << 1) | bits[i + j];
+      cw.push(b);
+    }
+    return cw;
+  };
+
+  /* Parte en bloques, calcula la corrección y los entrelaza como manda la norma */
+  const entrelazar = (cw, v) => {
+    const [nEc, b1, d1, b2, d2] = BLOQUES_Q[v];
+    const bloques = [], correcciones = [];
+    let i = 0;
+    for (let n = 0; n < b1; n++) { bloques.push(cw.slice(i, i + d1)); i += d1; }
+    for (let n = 0; n < b2; n++) { bloques.push(cw.slice(i, i + d2)); i += d2; }
+    bloques.forEach(b => correcciones.push(ecc(b, nEc)));
+    const salida = [];
+    const maxD = Math.max(d1, d2);
+    for (let c = 0; c < maxD; c++) bloques.forEach(b => { if (c < b.length) salida.push(b[c]); });
+    for (let c = 0; c < nEc; c++) correcciones.forEach(b => salida.push(b[c]));
+    return salida;
+  };
+
+  /* ── La matriz ── */
+  const nuevaMatriz = (v) => {
+    const n = v * 4 + 17;
+    const m = [], reservado = [];
+    for (let i = 0; i < n; i++) { m.push(new Array(n).fill(0)); reservado.push(new Array(n).fill(false)); }
+
+    const cuadro = (fila, col) => {          // patrón de búsqueda 7x7 + separador
+      for (let f = -1; f <= 7; f++) for (let c = -1; c <= 7; c++) {
+        const y = fila + f, x = col + c;
+        if (y < 0 || y >= n || x < 0 || x >= n) continue;
+        const dentro = (f >= 0 && f <= 6 && (c === 0 || c === 6)) ||
+                       (c >= 0 && c <= 6 && (f === 0 || f === 6)) ||
+                       (f >= 2 && f <= 4 && c >= 2 && c <= 4);
+        m[y][x] = dentro ? 1 : 0; reservado[y][x] = true;
+      }
+    };
+    cuadro(0, 0); cuadro(0, n - 7); cuadro(n - 7, 0);
+
+    for (let i = 8; i < n - 8; i++) {        // líneas de tiempo
+      const b = (i % 2 === 0) ? 1 : 0;
+      m[6][i] = b; reservado[6][i] = true;
+      m[i][6] = b; reservado[i][6] = true;
+    }
+
+    const al = ALINEACION[v];                // patrones de alineación 5x5
+    al.forEach(fila => al.forEach(col => {
+      if (reservado[fila][col]) return;
+      for (let f = -2; f <= 2; f++) for (let c = -2; c <= 2; c++) {
+        const borde = Math.max(Math.abs(f), Math.abs(c));
+        m[fila + f][col + c] = (borde !== 1) ? 1 : 0;
+        reservado[fila + f][col + c] = true;
+      }
+    }));
+
+    m[n - 8][8] = 1; reservado[n - 8][8] = true;   // módulo siempre negro
+
+    for (let i = 0; i < 9; i++) {            // lugar del formato
+      if (!reservado[8][i]) { reservado[8][i] = true; m[8][i] = 0; }
+      if (!reservado[i][8]) { reservado[i][8] = true; m[i][8] = 0; }
+    }
+    for (let i = 0; i < 8; i++) {
+      reservado[8][n - 1 - i] = true; m[8][n - 1 - i] = 0;
+      reservado[n - 1 - i][8] = true; m[n - 1 - i][8] = 0;
+    }
+    if (v >= 7) {                            // lugar de la versión
+      for (let i = 0; i < 6; i++) for (let j = 0; j < 3; j++) {
+        reservado[n - 11 + j][i] = true; m[n - 11 + j][i] = 0;
+        reservado[i][n - 11 + j] = true; m[i][n - 11 + j] = 0;
+      }
+    }
+    return { m, reservado, n };
+  };
+
+  const colocar = (m, reservado, n, datos) => {
+    let bit = 0;
+    const total = datos.length * 8;
+    const leer = () => { if (bit >= total) return 0; const b = (datos[bit >> 3] >> (7 - (bit & 7))) & 1; bit++; return b; };
+    let subiendo = true;
+    for (let col = n - 1; col > 0; col -= 2) {
+      if (col === 6) col--;                 // la columna de tiempo no cuenta
+      for (let f = 0; f < n; f++) {
+        const fila = subiendo ? (n - 1 - f) : f;
+        for (let d = 0; d < 2; d++) {
+          const c = col - d;
+          if (reservado[fila][c]) continue;
+          m[fila][c] = leer();
+        }
+      }
+      subiendo = !subiendo;
+    }
+  };
+
+  const MASCARAS = [
+    (f, c) => (f + c) % 2 === 0,
+    (f, c) => f % 2 === 0,
+    (f, c) => c % 3 === 0,
+    (f, c) => (f + c) % 3 === 0,
+    (f, c) => (Math.floor(f / 2) + Math.floor(c / 3)) % 2 === 0,
+    (f, c) => ((f * c) % 2) + ((f * c) % 3) === 0,
+    (f, c) => (((f * c) % 2) + ((f * c) % 3)) % 2 === 0,
+    (f, c) => (((f + c) % 2) + ((f * c) % 3)) % 2 === 0,
+  ];
+
+  const formato = (mascara) => {
+    /* nivel Q = 11 */
+    let datos = (0b11 << 3) | mascara;
+    let bch = datos << 10;
+    for (let i = 4; i >= 0; i--) if ((bch >> (i + 10)) & 1) bch ^= 0b10100110111 << i;
+    return ((datos << 10) | bch) ^ 0b101010000010010;
+  };
+
+  const ponerFormato = (m, n, mascara) => {
+    const f = formato(mascara);
+    /* La norma numera los 15 bits del formato del MÁS significativo (b14) al
+       menos (b0), y el b14 va arriba a la izquierda. Tenerlo al revés da un
+       QR que parece bien pero ningún lector puede leer. */
+    const bit = (i) => (f >> i) & 1;
+    /* Copia 1, alrededor del cuadro de arriba a la izquierda */
+    for (let i = 0; i <= 5; i++) m[8][i] = bit(14 - i);
+    m[8][7] = bit(8); m[8][8] = bit(7); m[7][8] = bit(6);
+    for (let i = 0; i <= 5; i++) m[5 - i][8] = bit(5 - i);
+    /* Copia 2, repartida entre los otros dos cuadros */
+    for (let i = 0; i <= 6; i++) m[n - 1 - i][8] = bit(14 - i);
+    for (let i = 0; i <= 7; i++) m[8][n - 8 + i] = bit(7 - i);
+    m[n - 8][8] = 1;
+  };
+
+  const ponerVersion = (m, n, v) => {
+    if (v < 7) return;
+    const info = INFO_VERSION[v];
+    for (let i = 0; i < 18; i++) {
+      const b = (info >> i) & 1;
+      const fila = Math.floor(i / 3), col = i % 3;
+      m[n - 11 + col][fila] = b;
+      m[fila][n - 11 + col] = b;
+    }
+  };
+
+  /* Las 4 reglas de penalización de la norma: la máscara que menos suma gana */
+  const penalizacion = (m, n) => {
+    let p = 0;
+    const corridas = (get) => {
+      for (let a = 0; a < n; a++) {
+        let largo = 1;
+        for (let b = 1; b < n; b++) {
+          if (get(a, b) === get(a, b - 1)) { largo++; }
+          else { if (largo >= 5) p += 3 + (largo - 5); largo = 1; }
+        }
+        if (largo >= 5) p += 3 + (largo - 5);
+      }
+    };
+    corridas((f, c) => m[f][c]);
+    corridas((c, f) => m[f][c]);
+    for (let f = 0; f < n - 1; f++) for (let c = 0; c < n - 1; c++) {
+      const v = m[f][c];
+      if (v === m[f][c + 1] && v === m[f + 1][c] && v === m[f + 1][c + 1]) p += 3;
+    }
+    const patron = [1, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0];
+    const patron2 = [0, 0, 0, 0, 1, 0, 1, 1, 1, 0, 1];
+    const busca = (get) => {
+      for (let a = 0; a < n; a++) for (let b = 0; b + 11 <= n; b++) {
+        let ok1 = true, ok2 = true;
+        for (let i = 0; i < 11; i++) {
+          const v = get(a, b + i);
+          if (v !== patron[i]) ok1 = false;
+          if (v !== patron2[i]) ok2 = false;
+        }
+        if (ok1) p += 40;
+        if (ok2) p += 40;
+      }
+    };
+    busca((f, c) => m[f][c]);
+    busca((c, f) => m[f][c]);
+    let oscuros = 0;
+    for (let f = 0; f < n; f++) for (let c = 0; c < n; c++) oscuros += m[f][c];
+    const pct = (oscuros * 100) / (n * n);
+    p += Math.floor(Math.abs(pct - 50) / 5) * 10;
+    return p;
+  };
+
+  /* ── La función que se usa: texto → matriz de 0 y 1 ── */
+  const matriz = (txt, mascaraFija) => {
+    let v = 0;
+    for (let i = 1; i <= 10; i++) if (codewords(txt, i)) { v = i; break; }
+    if (!v) throw new Error("El texto es demasiado largo para el QR.");
+    const datos = entrelazar(codewords(txt, v), v);
+
+    let mejor = null, mejorP = Infinity;
+    const cuales = (mascaraFija === undefined || mascaraFija === null) ? [0, 1, 2, 3, 4, 5, 6, 7] : [mascaraFija];
+    cuales.forEach(mk => {
+      const { m, reservado, n } = nuevaMatriz(v);
+      colocar(m, reservado, n, datos);
+      for (let f = 0; f < n; f++) for (let c = 0; c < n; c++) {
+        if (!reservado[f][c] && MASCARAS[mk](f, c)) m[f][c] ^= 1;
+      }
+      ponerFormato(m, n, mk);
+      ponerVersion(m, n, v);
+      const p = penalizacion(m, n);
+      if (p < mejorP) { mejorP = p; mejor = m; }
+    });
+    return mejor;
+  };
+
+  /* Dibujo como <svg>, que es lo que imprime nítido a cualquier tamaño */
+  const svg = (txt, ladoMM, margenModulos) => {
+    const m = matriz(txt);
+    const n = m.length;
+    const q = (margenModulos === undefined) ? 2 : margenModulos;   // silencio alrededor
+    const total = n + q * 2;
+    let d = "";
+    for (let f = 0; f < n; f++) for (let c = 0; c < n; c++) {
+      if (m[f][c]) d += `M${c + q} ${f + q}h1v1h-1z`;
+    }
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${total} ${total}" ` +
+           `width="${ladoMM}mm" height="${ladoMM}mm" shape-rendering="crispEdges">` +
+           `<rect width="${total}" height="${total}" fill="#fff"/>` +
+           `<path d="${d}" fill="#000"/></svg>`;
+  };
+
+  return { matriz, svg };
+})();
+
+/* ── LAS BUTACAS SALEN DEL NÚMERO INTERNO ────────────────────────────────
+   Regla del parque móvil de HSI: los DOS PRIMEROS DÍGITOS del interno son
+   la cantidad de butacas. 19402 es una Sprinter de 19; 14502 y 14504 son
+   de 14; 24506 y 24510 son de 24. No hay que cargar nada en ningún lado.
+   Si de los dos primeros dígitos sale algo imposible (menos de 8 o más de
+   70), no se inventa nada: se avisa y se pide el número a mano. */
+const recButacasDelInterno = (interno) => {
+  const d = String(interno || "").replace(/\D/g, "");
+  if (d.length < 3) return 0;
+  const n = Number(d.slice(0, 2));
+  return (n >= 8 && n <= 70) ? n : 0;
+};
+
+/* Devuelve las butacas y DE DÓNDE salieron, para poder mostrarlo en pantalla:
+   una cifra sin explicación no sirve para decidir. */
+const recButacas = (interno, vehiculos) => {
+  const clave = pgNorm(interno);
+  const u = clave ? (vehiculos || []).find(v => pgNorm(v.vehiculo) === clave || pgNorm(v.patente) === clave) : null;
+  const aMano = u ? Number(String(u.butacas || "").replace(/\D/g, "")) : 0;
+  if (aMano > 0) return { n: aMano, origen: "ficha", unidad: u };
+  const delInterno = recButacasDelInterno(interno);
+  if (delInterno > 0) return { n: delInterno, origen: "interno", unidad: u || null };
+  return { n: 0, origen: "", unidad: u || null };
+};
+
+/* El contador que se ve mientras tildás gente. La idea es que no haya que
+   pensar: verde entra, ámbar está al límite, rojo no entra. */
+/* ── CREDENCIAL DEL PERSONAL ──────────────────────────────────────────────
+   Tamaño tarjeta (85,6 × 54 mm, el mismo plástico que una SUBE o un DNI),
+   con lugar para la foto.
+
+   Lo que NO lleva, a propósito: el celular del pasajero. La tarjeta se
+   entrega, se pierde, queda en un asiento. El conductor ya tiene el
+   teléfono en la app, atrás del login, que es donde tiene que estar.
+   Al dorso va el teléfono de TRÁFICO, que es el que sirve si alguien
+   la encuentra o si el pasajero tiene un problema en la parada.        */
+const REC_TEL_TRAFICO = "";   // cargalo acá y sale impreso al dorso
+
+const recCredencialHTML = (c, opciones) => {
+  const o = opciones || {};
+  const svg = c.qr ? QR.svg(c.qr, 19, 1) : "";
+  const nom = recEsc(String(c.nombre || "").trim());
+  const ape = recEsc(String(c.apellido || "").trim());
+  const iniciales = ((ape || nom).charAt(0) + (nom.charAt(0) || "")).toUpperCase();
+  const foto = String(c.foto || "").trim();
+  return `<div class="cred">
+    <div class="cred-barra"><span class="cred-marca">HSI</span><span class="cred-sub">TRANSPORTE DE PERSONAL &middot; TGS</span></div>
+    <div class="cred-cuerpo">
+      <div class="cred-foto">${foto ? `<img src="${recEsc(foto)}" alt="">` : `<span class="cred-ini">${recEsc(iniciales)}</span><span class="cred-fototxt">FOTO</span>`}</div>
+      <div class="cred-datos">
+        <div class="cred-ape">${ape || nom}</div>
+        <div class="cred-nom">${ape ? nom : ""}</div>
+        <div class="cred-campo"><span>GRUPO</span>${recEsc(c.grupo || "—")}</div>
+        <div class="cred-campo"><span>PARADA</span>${recEsc(c.parada || "a asignar")}</div>
+      </div>
+      <div class="cred-qr">${svg}</div>
+    </div>
+    <div class="cred-pie">
+      <span class="cred-pieizq">HSI SERVICIOS INDUSTRIALES</span>
+      <span class="cred-cod">${recEsc(String(c.qr || "").split("-").pop())}</span>
+    </div>
+  </div>`;
+};
+
+const recCredencialDorsoHTML = () => `<div class="cred cred-dorso">
+    <div class="cred-barra"><span class="cred-marca">HSI</span><span class="cred-sub">SERVICIOS INDUSTRIALES</span></div>
+    <div class="cred-dcuerpo">
+      <p><b>Presentá esta credencial al subir.</b> El conductor la escanea y queda registrado tu ascenso.</p>
+      <p>La unidad espera <b>3 minutos</b> en cada parada. Si no hay pasajeros para ascender, sigue de largo y los horarios siguientes pueden adelantarse.</p>
+      <p class="cred-dpie">Si encontrás esta credencial, o si tenés un problema en la parada, comunicate con tráfico de HSI${REC_TEL_TRAFICO ? ": <b>" + recEsc(REC_TEL_TRAFICO) + "</b>" : "."}</p>
+    </div>
+  </div>`;
+
+/* Dos formatos: HOJA = 10 tarjetas por A4 para imprimir y plastificar acá;
+   IMPRENTA = una por página al tamaño exacto, para mandar a hacer.        */
+const recImprimirCredenciales = (lista, formato) => {
+  const imprenta = formato === "imprenta";
+  const frentes = lista.map(c => recCredencialHTML(c)).join("");
+  const cuerpo = imprenta
+    ? lista.map(c => `<div class="pag">${recCredencialHTML(c)}</div><div class="pag">${recCredencialDorsoHTML()}</div>`).join("")
+    : `<div class="grilla">${frentes}</div>`;
+  const w = window.open("", "_blank");
+  w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Credenciales HSI</title><style>
+    @page { size: ${imprenta ? "85.6mm 54mm" : "A4"}; margin: ${imprenta ? "0" : "9mm"}; }
+    *{box-sizing:border-box}
+    body{font-family:Montserrat,Arial,Helvetica,sans-serif;margin:0;color:#111;background:#fff}
+    .grilla{display:grid;grid-template-columns:repeat(2,85.6mm);gap:4mm;justify-content:center}
+    .pag{width:85.6mm;height:54mm;page-break-after:always}
+    .cred{width:85.6mm;height:54mm;border:.3mm solid #94A3B8;border-radius:3mm;overflow:hidden;
+          display:flex;flex-direction:column;background:#fff;page-break-inside:avoid}
+    .cred-barra{background:#1E293B;color:#fff;padding:2mm 3mm;display:flex;align-items:baseline;gap:2.5mm;flex:0 0 auto}
+    .cred-marca{font-size:5mm;font-weight:900;letter-spacing:.6mm}
+    .cred-sub{font-size:2.1mm;font-weight:700;letter-spacing:.35mm;color:#CBD5E1}
+    .cred-cuerpo{flex:1 1 auto;display:flex;gap:2.5mm;padding:2.5mm 3mm 1.5mm;min-height:0}
+    .cred-foto{flex:0 0 21mm;align-self:stretch;border:.3mm dashed #94A3B8;border-radius:1.5mm;background:#F1F5F9;
+               display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden}
+    .cred-foto img{width:100%;height:100%;object-fit:cover}
+    .cred-ini{font-size:8mm;font-weight:800;color:#94A3B8;line-height:1}
+    .cred-fototxt{font-size:2mm;font-weight:700;letter-spacing:.4mm;color:#94A3B8;margin-top:1.2mm}
+    .cred-datos{flex:1 1 auto;min-width:0;display:flex;flex-direction:column}
+    .cred-ape{font-size:4.4mm;font-weight:800;line-height:1.05;text-transform:uppercase;
+              overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .cred-nom{font-size:3.1mm;font-weight:600;color:#334155;line-height:1.2;
+              overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .cred-campo{font-size:2.5mm;font-weight:700;color:#111;margin-top:1.6mm;line-height:1.28;
+                overflow-wrap:anywhere}
+    .cred-campo span{display:block;font-size:1.9mm;font-weight:700;letter-spacing:.3mm;color:#94A3B8;margin-bottom:.3mm}
+    .cred-qr{flex:0 0 19mm;align-self:flex-start;display:flex;align-items:flex-start;justify-content:center}
+    .cred-qr svg{display:block}
+    .cred-pie{flex:0 0 auto;border-top:.25mm solid #E2E8F0;padding:1.3mm 3mm;display:flex;
+              align-items:center;justify-content:space-between;gap:2mm;background:#F8FAFC}
+    .cred-pieizq{font-size:1.9mm;font-weight:700;letter-spacing:.35mm;color:#94A3B8}
+    .cred-cod{font-family:"Courier New",monospace;font-size:2.6mm;font-weight:700;letter-spacing:.4mm;color:#334155}
+    .cred-dorso .cred-dcuerpo{flex:1;padding:3mm 4mm;font-size:2.5mm;line-height:1.45;color:#334155}
+    .cred-dorso p{margin:0 0 2mm}
+    .cred-dpie{color:#64748B;font-size:2.3mm}
+    @media print{ body{-webkit-print-color-adjust:exact;print-color-adjust:exact} }
+  </style></head><body>${cuerpo}</body></html>`);
+  w.document.close();
+  setTimeout(() => { w.focus(); w.print(); }, 350);
+};
+
+const ContadorButacas = ({ cupo, interno, onCorregir }) => {
+  if (!String(interno || "").trim()) {
+    return (
+      <div style={{ fontSize: 12, color: "#B45309", background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: 9, padding: "7px 12px", fontWeight: 600 }}>
+        Poné el interno en el Paso 2 y te digo si entran.
+      </div>
+    );
+  }
+  if (!cupo.seSabe) {
+    return (
+      <div style={{ fontSize: 12, color: "#B45309", background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: 9, padding: "7px 12px", fontWeight: 600 }}>
+        {cupo.suben} tildados · no sé las butacas del {interno}
+        <button onClick={onCorregir} style={{ marginLeft: 8, background: "none", border: "none", padding: 0, cursor: "pointer", color: "#92400E", fontSize: 12, fontWeight: 800, textDecoration: "underline" }}>cargarlas</button>
+      </div>
+    );
+  }
+  const lleno = cupo.suben >= cupo.butacas;
+  const pasado = cupo.suben > cupo.butacas;
+  const col = pasado ? { t: "#991B1B", f: "#FEF2F2", b: "#FECACA" }
+            : lleno   ? { t: "#92400E", f: "#FFFBEB", b: "#FDE68A" }
+                      : { t: "#166534", f: "#F0FDF4", b: "#BBF7D0" };
+  const pct = Math.min(100, Math.round((cupo.suben / cupo.butacas) * 100));
+  return (
+    <div style={{ minWidth: 232, background: col.f, border: "1px solid " + col.b, borderRadius: 10, padding: "8px 12px" }}>
+      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 8 }}>
+        <span style={{ fontSize: 15, fontWeight: 800, color: col.t }}>{cupo.suben} de {cupo.butacas} butacas</span>
+        <span style={{ fontSize: 11.5, fontWeight: 700, color: col.t }}>
+          {pasado ? "se pasa por " + cupo.sobra : (cupo.libres === 0 ? "va completa" : "quedan " + cupo.libres)}
+        </span>
+      </div>
+      <div style={{ height: 5, background: "#fff", borderRadius: 99, overflow: "hidden", margin: "6px 0 4px", border: "1px solid " + col.b }}>
+        <div style={{ width: pct + "%", height: "100%", background: col.t, transition: "width .15s" }} />
+      </div>
+      <div style={{ fontSize: 10.5, color: col.t, opacity: .85 }}>
+        interno {interno}{cupo.trasbordo ? " · " + cupo.trasbordo + " llegan por trasbordo y también ocupan butaca" : ""}
+      </div>
+    </div>
+  );
+};
+
 const REC_LS = { padron: "REC_PADRON_V1", servicios: "REC_SERVICIOS_V1", proveedores: "REC_PROVEEDORES_V1", grupos: "REC_GRUPOS_V1", paradas: "REC_PARADAS_V1" };
 
 /* Las PARADAS de cada grupo. OJO: no son el domicilio del pasajero, son las
@@ -8522,6 +8996,10 @@ const recImprimir = (srv, pasajeros) => {
       <tr><th>PASAJEROS</th><th>HORA</th><th>EMPLEADO</th><th>DESDE</th><th>HASTA</th><th>CONTACTO</th><th>TRASBORDO</th></tr>
       ${cuerpo}
     </table>
+    ${srv.sobrecupo === "SI" ? `<div style="border:3px solid #B91C1C;background:#FEF2F2;color:#7F1D1D;padding:9px 14px;margin:10px 0;font-weight:800;font-size:13px;letter-spacing:.5px">
+       SOBRECUPO &nbsp;·&nbsp; la unidad ${recEsc(srv.interno)} tiene ${recEsc(String(srv.butacas || "?"))} butacas y esta planilla lleva ${pasajeros.length} pasajeros.
+       <div style="font-weight:600;font-size:11.5px;margin-top:3px;letter-spacing:0">Se imprimió de todos modos, a criterio de tráfico.</div>
+     </div>` : ""}
     ${recRecorridoHTML(pasajeros, srv.__paradas || [])}
     <p class="noimp" style="font-size:12px;color:#777">Se abre el diálogo de impresión solo. Desde ahí también podés «Guardar como PDF» para mandarlo por WhatsApp.</p>
     <script>window.print();</` + `script></body></html>`);
@@ -8540,7 +9018,7 @@ const recImprimir = (srv, pasajeros) => {
                     e interno, y sale la planilla impresa
    ═══════════════════════════════════════════════════════════════════════════ */
 
-const Recorridos = ({ vehiculos, conductores, empresaActiva, recPadron, recServicios, recProveedores, recGrupos, recParadas }) => {
+const Recorridos = ({ vehiculos, conductores, empresaActiva, recPadron, recServicios, recProveedores, recGrupos, recParadas, recPasos, recAscensos, setVehiculos }) => {
   const [grupos, setGrupos] = useState(() => {
     const g = pgLeer(REC_LS.grupos, null);
     return (g && g.length) ? g : REC_GRUPOS_INICIAL;
@@ -8638,6 +9116,38 @@ const Recorridos = ({ vehiculos, conductores, empresaActiva, recPadron, recServi
   const delGrupo = (gid) => activos.filter(p => String(p.grupo || "") === String(gid));
   const candidatos = grupoActual ? (verTodos ? activos : delGrupo(grupoActual.id)) : [];
   const elegidos = activos.filter(p => marcados[p.id]);
+
+  /* ── EL CUPO DE LA UNIDAD ──────────────────────────────────────────────
+     Cuántos entran y cuántos tildaste. Los de trasbordo TAMBIÉN cuentan:
+     Vasti los acerca al punto de encuentro, pero de ahí a la planta viajan
+     en la unidad y ocupan una butaca igual. */
+  const cupo = (() => {
+    const b = recButacas(srv.interno, vehiculos);
+    const conTrasbordo = elegidos.filter(p => String(p.trasbordo || "").trim()).length;
+    const suben = elegidos.length;
+    return {
+      butacas: b.n, origen: b.origen, unidad: b.unidad,
+      suben: suben, trasbordo: conTrasbordo, propios: suben - conTrasbordo,
+      libres: b.n ? b.n - suben : 0,
+      sobra: b.n ? Math.max(0, suben - b.n) : 0,
+      seSabe: b.n > 0,
+    };
+  })();
+
+  /* Corregir a mano las butacas de una unidad que no sigue la regla del
+     interno. Queda guardado en la ficha del vehículo, así no hay que
+     volver a hacerlo nunca más para esa unidad. */
+  const corregirButacas = () => {
+    if (!srv.interno.trim()) return alert("Primero poné el interno de la unidad.");
+    if (!cupo.unidad) return alert("El interno " + srv.interno + " no figura en Vehículos.\n\nCargalo ahí primero y después volvé: así las butacas quedan guardadas en la ficha de esa unidad.");
+    const actual = cupo.seSabe ? String(cupo.butacas) : "";
+    const r = prompt("¿Cuántas butacas tiene realmente la unidad " + srv.interno + "?\n\n(Por el interno saldrían " + (recButacasDelInterno(srv.interno) || "—") + ". Lo que pongas acá manda y queda guardado en la ficha de la unidad.)", actual);
+    if (r === null) return;
+    const n = Number(String(r).replace(/\D/g, ""));
+    if (!n || n < 1 || n > 90) return alert("Poné un número de butacas entre 1 y 90.");
+    if (typeof setVehiculos !== "function") return alert("No se pudo guardar: falta el módulo de Vehículos.");
+    setVehiculos(prev => prev.map(v => mismoId(v.id, cupo.unidad.id) ? { ...v, butacas: n } : v));
+  };
 
   const setP = (id, k, v) => setPadron(prev => prev.map(x => x.id === id ? { ...x, [k]: v } : x));
   const setG = (id, k, v) => setGrupos(prev => prev.map(x => x.id === id ? { ...x, [k]: v } : x));
@@ -8792,6 +9302,28 @@ const Recorridos = ({ vehiculos, conductores, empresaActiva, recPadron, recServi
     if (!srv.chofer.trim()) return alert("Falta poner el chofer.");
     if (!srv.interno.trim()) return alert("Falta poner el interno.");
     if (!elegidos.length) return alert("No tildaste a nadie. Marcá quién viaja hoy.");
+    /* EL CUPO. Si no entran, no sale la planilla: eso es lo que pidió
+       tráfico. Pero se puede forzar a propósito, porque la realidad a las
+       5 de la mañana no siempre se ajusta al papel. Si se fuerza, la
+       planilla sale marcada, para que quede constancia de quién decidió. */
+    let sobrecupo = false;
+    if (cupo.seSabe && cupo.suben > cupo.butacas) {
+      const ok = confirm(
+        "NO ENTRAN EN LA UNIDAD.\n\n" +
+        "Interno " + srv.interno + ": " + cupo.butacas + " butacas.\n" +
+        "Tildaste " + cupo.suben + " pasajeros" + (cupo.trasbordo ? " (" + cupo.trasbordo + " por trasbordo, que también ocupan butaca)" : "") + ".\n" +
+        "Sobran " + cupo.sobra + ".\n\n" +
+        "Lo que corresponde es sacar gente, mandar otra unidad o partir el grupo.\n\n" +
+        "¿Imprimir igual? La planilla va a salir con el sello SOBRECUPO.");
+      if (!ok) return;
+      sobrecupo = true;
+    }
+    if (!cupo.seSabe) {
+      const ok = confirm(
+        "No sé cuántas butacas tiene el interno " + srv.interno + ", así que no puedo controlar el cupo.\n\n" +
+        "Tildaste " + cupo.suben + " pasajeros.\n\n¿Imprimir igual?");
+      if (!ok) return;
+    }
     const pasajeros = elegidos
       .slice()
       .sort((a, b) => String(a.hora).localeCompare(String(b.hora)))
@@ -8807,9 +9339,60 @@ const Recorridos = ({ vehiculos, conductores, empresaActiva, recPadron, recServi
                     dni_chofer: chofer ? String(chofer.dni || "") : "",
                     recorrido: recRecorridoParaLaApp(rec, grupoActual ? grupoActual.destino : "", coords),
                     __paradas: paradas,
+                    butacas: cupo.seSabe ? cupo.butacas : "",
+                    sobrecupo: sobrecupo ? "SI" : "",
                     estado: "programado" };
     setServicios(prev => [nuevo, ...prev.filter(s => !(s.fecha === srv.fecha && s.grupo === nuevo.grupo))]);
     recImprimir(nuevo, pasajeros);
+  };
+
+  /* Los códigos los calcula LA PLANILLA con un secreto que no sale de ahí.
+     Por eso hay que pedírselos: acá no se pueden inventar, que es
+     justamente lo que hace que una credencial no se pueda fabricar. */
+  const [credModal, setCredModal] = useState(null);   // {estado, lista, grupo, error}
+
+  const pedirCredenciales = async (idsPedidos, etiquetaGrupo) => {
+    setCredModal({ estado: "pidiendo", lista: [], grupo: etiquetaGrupo || "", error: "" });
+    if (!SHEET_API_URL) {
+      setCredModal({ estado: "error", lista: [], grupo: etiquetaGrupo || "",
+                     error: "Este panel no está conectado a la planilla, así que no puedo pedir los códigos." });
+      return;
+    }
+    try {
+      const r = await cfPost("recCodigosQR", idsPedidos && idsPedidos.length ? { ids: idsPedidos } : {});
+      if (!r || r.ok === false) throw new Error((r && r.error) || "la planilla no contestó");
+      const porId = {};
+      (r.credenciales || []).forEach(c => { porId[String(c.id)] = c; });
+      /* Se usa lo que hay en pantalla para el nombre y la parada — está más
+         fresco que la hoja — y de la planilla solo viene el código. */
+      const lista = (idsPedidos && idsPedidos.length ? padron.filter(p => idsPedidos.indexOf(String(p.id)) > -1) : padron.filter(p => p.activo !== false))
+        .map(p => {
+          const par = paradas.find(x => String(x.id) === String(p.parada || ""));
+          const c = porId[String(p.id)] || {};
+          return {
+            id: p.id,
+            apellido: String(p.apellido || "").trim(),
+            nombre: String(p.nombre || "").trim(),
+            grupo: recNombreGrupo(grupos, p.grupo) || "",
+            parada: String(p.trasbordo || "").trim()
+                      ? "lo trae " + p.trasbordo
+                      : (par ? (par.letra ? par.letra + " · " + par.nombre : par.nombre) : ""),
+            foto: p.foto || "",
+            qr: c.qr || "",
+          };
+        });
+      const conCodigo = lista.filter(c => c.qr).length;
+      const sinCodigo = lista.length - conCodigo;
+      if (!conCodigo) {
+        setCredModal({ estado: "error", lista: [], grupo: etiquetaGrupo || "",
+          error: "Ninguno de estos pasajeros tiene código todavía. Pasa cuando los cargaste recién y la planilla no los recibió aún: esperá a que arriba diga que guardó y volvé a tocar el botón." });
+        return;
+      }
+      setCredModal({ estado: "listo", lista: lista, grupo: etiquetaGrupo || "",
+                     error: sinCodigo ? sinCodigo + " pasajero(s) todavía no llegaron a la planilla, así que quedan sin credencial. Esperá a que guarde y volvé a probar." : "" });
+    } catch (e) {
+      setCredModal({ estado: "error", lista: [], grupo: etiquetaGrupo || "", error: String(e.message || e) });
+    }
   };
 
   const agregarProveedor = () => {
@@ -9100,6 +9683,75 @@ const Recorridos = ({ vehiculos, conductores, empresaActiva, recPadron, recServi
         </React.Fragment>
       )}
 
+      {credModal && (
+        <div onClick={e => { if (e.target === e.currentTarget) setCredModal(null); }}
+          style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,.45)", zIndex: 90, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+          <div style={{ background: "#fff", borderRadius: 14, width: "100%", maxWidth: 560, maxHeight: "88vh", overflow: "auto", boxShadow: "0 18px 50px rgba(0,0,0,.25)" }}>
+            <div style={{ padding: "16px 20px", borderBottom: "1px solid #F1F5F9" }}>
+              <h3 style={{ margin: 0, fontSize: 15.5, fontWeight: 800, color: "var(--c-primario)" }}>Credenciales con QR</h3>
+              <span style={{ fontSize: 12.5, color: "#6B7280" }}>Tamaño tarjeta (85,6 × 54 mm), con lugar para la foto.</span>
+            </div>
+
+            {credModal.estado === "pidiendo" && (
+              <div style={{ padding: "26px 20px", textAlign: "center", fontSize: 13.5, color: "#6B7280" }}>
+                Pidiéndole los códigos a la planilla…
+              </div>
+            )}
+
+            {credModal.estado === "error" && (
+              <div style={{ padding: "20px" }}>
+                <div style={{ background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 10, padding: "12px 14px", fontSize: 13, color: "#991B1B" }}>
+                  <b>No se pudieron traer los códigos.</b>
+                  <div style={{ marginTop: 5 }}>{credModal.error}</div>
+                  <div style={{ marginTop: 8, fontSize: 12, color: "#7F1D1D" }}>
+                    Si dice «Acción desconocida», falta publicar el conector: Implementar → Administrar implementaciones → ✏️ → Versión NUEVA.
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {credModal.estado === "listo" && (
+              <React.Fragment>
+                <div style={{ padding: "16px 20px" }}>
+                  <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>
+                    {credModal.lista.length} credencial{credModal.lista.length === 1 ? "" : "es"}
+                    {credModal.grupo ? " · " + credModal.grupo : ""}
+                  </div>
+                  {credModal.error && (
+                    <div style={{ background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: 9, padding: "9px 12px", fontSize: 12.5, color: "#92400E", margin: "8px 0" }}>
+                      {credModal.error}
+                    </div>
+                  )}
+                  <div style={{ fontSize: 12.5, color: "#6B7280", lineHeight: 1.5, marginTop: 8 }}>
+                    La tarjeta lleva apellido y nombre, grupo, parada y el QR. <b>No lleva el celular</b>: la credencial se entrega y circula, y el conductor ya tiene el teléfono en la app.
+                  </div>
+                  <div style={{ maxHeight: 190, overflow: "auto", border: "1px solid #F1F5F9", borderRadius: 9, marginTop: 12 }}>
+                    {credModal.lista.map(c => (
+                      <div key={c.id} style={{ display: "flex", justifyContent: "space-between", gap: 10, padding: "6px 11px", borderBottom: "1px solid #F8FAFC", fontSize: 12.5 }}>
+                        <span style={{ fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.apellido}{c.nombre ? ", " + c.nombre : ""}</span>
+                        <span style={{ fontFamily: "monospace", color: c.qr ? "#166534" : "#B45309", flex: "0 0 auto" }}>{c.qr ? c.qr.split("-").pop() : "sin código"}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div style={{ padding: "0 20px 18px", display: "flex", gap: 9, flexWrap: "wrap" }}>
+                  <button onClick={() => recImprimirCredenciales(credModal.lista.filter(c => c.qr), "hoja")}
+                    style={{ flex: "1 1 190px", padding: "11px 14px", borderRadius: 9, border: "none", background: "var(--c-primario)", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+                    Hoja A4 · 10 por página
+                  </button>
+                  <button onClick={() => recImprimirCredenciales(credModal.lista.filter(c => c.qr), "imprenta")}
+                    style={{ flex: "1 1 190px", padding: "11px 14px", borderRadius: 9, border: "1.5px solid var(--c-primario)", background: "#fff", color: "var(--c-primario)", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+                    Para la imprenta · una por página
+                  </button>
+                  <button onClick={() => setCredModal(null)}
+                    style={{ padding: "11px 16px", borderRadius: 9, border: "1.5px solid #E5E7EB", background: "#fff", color: "#6B7280", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Cerrar</button>
+                </div>
+              </React.Fragment>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* ═══════════════ 3 · PASAJEROS ═══════════════ */}
       {vista === "padron" && (
         <Card>
@@ -9110,6 +9762,12 @@ const Recorridos = ({ vehiculos, conductores, empresaActiva, recPadron, recServi
             </div>
             <button onClick={() => setPadron(prev => [...prev, { id: "px_" + pgId(), nombre: "", apellido: "", grupo: "", desde: "", hasta: "", hora: "06:00", trasbordo: "", tel: "", activo: true }])}
               style={{ padding: "7px 14px", borderRadius: 8, border: "none", background: "var(--c-primario)", color: "#fff", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>+ Agregar pasajero</button>
+            <button onClick={() => {
+                const activos = padron.filter(p => p.activo !== false);
+                if (!activos.length) return alert("Todavía no hay pasajeros cargados.");
+                pedirCredenciales(activos.map(p => String(p.id)), "");
+              }}
+              style={{ padding: "7px 14px", borderRadius: 8, border: "1.5px solid var(--c-primario)", background: "#fff", color: "var(--c-primario)", fontSize: 12.5, fontWeight: 700, cursor: "pointer" }}>Credenciales con QR</button>
             <ImportarMasivo nombre="Pasajeros" textoBoton="Carga masiva"
               ayuda="Una fila por pasajero. Lo único obligatorio es el apellido. La columna «Grupo» tiene que decir el nombre exacto de un grupo ya creado; si no existe, el pasajero entra igual pero sin grupo. Si el apellido y nombre ya están, esa fila se actualiza en vez de duplicarse. Lat y Lng son opcionales: si las traés, las paradas ya salen en el mapa del chofer sin tener que buscarlas."
               ejemplo={{ apellido: "Garcia", nombre: "Federico", celular: "2914482132", direccion: "Mathos Rodriguez 18, Cipolletti", grupo: "Planta Tratayen Cipolleti Dia", hasta: "Planta Tratayen", hora: "05:50", trasbordo: "", lat: "-38.9339", lng: "-67.9903" }}
@@ -9210,8 +9868,13 @@ const Recorridos = ({ vehiculos, conductores, empresaActiva, recPadron, recServi
 
           <Card style={{ marginBottom: 16 }}>
             <div style={{ padding: "14px 20px", borderBottom: "1px solid #F1F5F9", background: "#F8FAFC" }}>
-              <h3 style={{ margin: 0, fontSize: 14.5, fontWeight: 700, color: "var(--c-primario)" }}>Paso 1 · ¿Quién viaja hoy?</h3>
-              <span style={{ fontSize: 12.5, color: "#6B7280" }}>Tildá a los que confirmaron. O pegá abajo el chat del grupo y se tildan solos.</span>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: 14.5, fontWeight: 700, color: "var(--c-primario)" }}>Paso 1 · ¿Quién viaja hoy?</h3>
+                  <span style={{ fontSize: 12.5, color: "#6B7280" }}>Tildá a los que confirmaron. O pegá abajo el chat del grupo y se tildan solos.</span>
+                </div>
+                <ContadorButacas cupo={cupo} interno={srv.interno} onCorregir={corregirButacas} />
+              </div>
             </div>
             <div style={{ padding: "14px 20px" }}>
               <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 12, flexWrap: "wrap" }}>
@@ -9296,6 +9959,22 @@ const Recorridos = ({ vehiculos, conductores, empresaActiva, recPadron, recServi
               <Field label="Interno">
                 <Input list="rec-internos" value={srv.interno} placeholder="14502" onChange={e => setSrv(p => ({ ...p, interno: e.target.value }))} />
                 <datalist id="rec-internos">{(vehiculos || []).map(v => <option key={v.id} value={v.interno || v.vehiculo || v.patente} />)}</datalist>
+                {srv.interno.trim() && (
+                  <div style={{ fontSize: 11.5, marginTop: 4, lineHeight: 1.45, color: cupo.seSabe ? "#6B7280" : "#B45309" }}>
+                    {cupo.seSabe ? (
+                      <React.Fragment>
+                        <b style={{ color: "#111827" }}>{cupo.butacas} butacas</b>
+                        <span> · {cupo.origen === "interno" ? "deducidas del interno " + srv.interno : "cargadas en la ficha de la unidad"}</span>
+                        <button onClick={corregirButacas} style={{ marginLeft: 6, background: "none", border: "none", padding: 0, cursor: "pointer", color: "var(--c-primario)", fontSize: 11.5, fontWeight: 700 }}>corregir</button>
+                      </React.Fragment>
+                    ) : (
+                      <React.Fragment>
+                        <b>No sé cuántas butacas tiene.</b> El interno «{srv.interno}» no empieza con dos dígitos que den una cantidad razonable.
+                        <button onClick={corregirButacas} style={{ marginLeft: 6, background: "none", border: "none", padding: 0, cursor: "pointer", color: "var(--c-primario)", fontSize: 11.5, fontWeight: 700 }}>ponerlas a mano</button>
+                      </React.Fragment>
+                    )}
+                  </div>
+                )}
               </Field>
               <Field label="Hora de ingreso"><Input type="time" value={srv.hora} onChange={e => setSrv(p => ({ ...p, hora: e.target.value }))} /></Field>
               <Field label="Nota del encabezado"><Input value={srv.nota} onChange={e => setSrv(p => ({ ...p, nota: e.target.value }))} /></Field>
@@ -9681,7 +10360,7 @@ const App = () => {
   });
   const setEmpresaActiva = (id) => { setEmpresaActivaCruda(id); try { almacen.set("EMPRESA_ACTIVA", String(id)); } catch (e) { } };
   // v8.7: lo que manda la app del conductor (el GET del conector ya lo trae)
-  const [cfDatos, setCfDatos] = useState({ insumos: [], pedidos: [], seguimientoOT: [], diagramas: [], asignaciones: [], biblioteca: [], recPadron: [], recServicios: [], recProveedores: [] });
+  const [cfDatos, setCfDatos] = useState({ insumos: [], pedidos: [], seguimientoOT: [], diagramas: [], asignaciones: [], biblioteca: [], recPadron: [], recServicios: [], recProveedores: [], recGrupos: [], recParadas: [], recPasos: [], recAscensos: [] });
   const [vehiculos, setVehiculos] = useState(VEHICULOS_INIT);
   const [conductores, setConductores] = useState(CONDUCTORES_INIT);
   const [mantenimiento, setMantenimiento] = useState(MANTENIMIENTO_INIT);
@@ -9767,6 +10446,13 @@ const App = () => {
           recPadron: Array.isArray(data.recPadron) ? data.recPadron : [],
           recServicios: Array.isArray(data.recServicios) ? data.recServicios : [],
           recProveedores: Array.isArray(data.recProveedores) ? data.recProveedores : [],
+          /* v6.3 — FALTABAN. Sin esto los grupos y las paradas vivían solo en
+             el navegador: en otra computadora, o al limpiar el caché, no
+             aparecían. recPasos y recAscensos son lo que marcó el chofer. */
+          recGrupos: Array.isArray(data.recGrupos) ? data.recGrupos : [],
+          recParadas: Array.isArray(data.recParadas) ? data.recParadas : [],
+          recPasos: Array.isArray(data.recPasos) ? data.recPasos : [],
+          recAscensos: Array.isArray(data.recAscensos) ? data.recAscensos : [],
         });
         // Empresa activa: la primera activa disponible
         if (Array.isArray(data.empresas) && data.empresas.length) {
@@ -10066,7 +10752,7 @@ const App = () => {
                   pero las fuentes van completas para que la cuenta de cada mes cierre. */}
               {empresa && page === "costosfijos" && <CostosFijos costosFijos={cfData} setCostosFijos={setCostosFijos} empresaActiva={empresaActiva} personal={perData} vehiculos={vData} mantenimiento={mTodo} viajes={viTodo} combustible={coTodo} gastos={gTodo} partes={paTodo} combustibleTodo={coTodo} />}
               {empresa && page === "gastos" && <Gastos gastos={gData} setGastos={setGastos} vehiculos={vData} conductores={cData} empresaActiva={empresaActiva} />}
-              {empresa && page === "recorridos" && <Recorridos vehiculos={vData} conductores={cData} empresaActiva={empresaActiva} recPadron={cfDatos.recPadron} recServicios={cfDatos.recServicios} recProveedores={cfDatos.recProveedores} recGrupos={cfDatos.recGrupos} recParadas={cfDatos.recParadas} />}
+              {empresa && page === "recorridos" && <Recorridos vehiculos={vData} conductores={cData} empresaActiva={empresaActiva} recPadron={cfDatos.recPadron} recServicios={cfDatos.recServicios} recProveedores={cfDatos.recProveedores} recGrupos={cfDatos.recGrupos} recParadas={cfDatos.recParadas} recPasos={cfDatos.recPasos} recAscensos={cfDatos.recAscensos} setVehiculos={setVehiculos} />}
               {empresa && page === "proyectos" && <Proyectos proyectos={pData} setProyectos={setProyectos} vehiculos={vData} conductores={cData} empresaActiva={empresaActiva} bases={empresa.bases || []} partes={paTodo} viajes={viTodo} combustible={coTodo} combustibleTodo={coTodo} />}
               {page === "empresas" && <Empresas empresas={empresas} setEmpresas={setEmpresas} empresaActiva={empresaActiva} setEmpresaActiva={setEmpresaActiva} vehiculos={vehiculos} conductores={conductores} />}
               {page === "marca" && <Marca marca={marca} setMarca={setMarca} />}
