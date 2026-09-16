@@ -3,7 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>CheckFlota · App del Conductor v5</title>
+<title>Gestión de Flota · App del conductor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
@@ -42,7 +44,7 @@
   .btn.sec:hover{background:#e7f4ec}
   .login-error{margin-top:14px;color:var(--red);font-size:14px;text-align:center}
   .login-hint{margin-top:20px;padding:10px 12px;background:var(--amber-soft);
-    border:1px dashed var(--amber);border-radius:8px;font-size:12px;color:#7a5b10}
+    border:1px dashed var(--amber);border-radius:8px;font-size:12px;color:var(--alerta)}
   /* ---------- SHELL ---------- */
   .topbar{background:var(--dark);color:#fff;padding:12px 16px;display:flex;align-items:center;
     justify-content:space-between;position:sticky;top:0;z-index:20;gap:10px}
@@ -321,7 +323,7 @@
     box-shadow:0 0 0 2000px rgba(0,0,0,.35)}
   /* ===== HOJA DE RUTA estilo Uber (v5.3) ===== */
   .ruta-pantalla{position:fixed;inset:0;top:0;display:flex;flex-direction:column;background:#e8ece9;z-index:40}
-  .ruta-banda{background:var(--amber-soft);color:#7a5b10;font-size:12.5px;font-weight:700;padding:8px 12px;text-align:center}
+  .ruta-banda{background:var(--amber-soft);color:var(--alerta);font-size:12.5px;font-weight:700;padding:8px 12px;text-align:center}
   .ruta-cabecera{background:#fff;padding:10px 14px 8px;border-bottom:1px solid var(--line);flex:0 0 auto;position:relative;z-index:3}
   .ruta-cabecera > div:first-child{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap}
   .ruta-cabecera b{font-size:14.5px;font-weight:800;color:var(--ink)}
@@ -365,7 +367,7 @@
   .ruta-pax{border:1px solid var(--line);border-radius:12px;padding:11px;margin-bottom:9px;background:#fff}
   .ruta-pax .nom{font-size:15px;font-weight:800;margin-bottom:2px}
   .ruta-tel{font-size:12.5px;color:var(--muted);font-weight:700;text-decoration:none;display:inline-block}
-  .ruta-chip{display:inline-block;background:var(--amber-soft);color:#7a5b10;border-radius:7px;
+  .ruta-chip{display:inline-block;background:var(--amber-soft);color:var(--alerta);border-radius:7px;
     padding:2px 7px;font-size:11px;font-weight:800;margin-left:6px}
   .ruta-par{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:10px}
   .ruta-par button{padding:15px 6px;border-radius:12px;font-size:15px;font-weight:800;border:2px solid;cursor:pointer;font-family:inherit}
@@ -380,7 +382,7 @@
   .ruta-deshacer{background:none;border:none;color:inherit;text-decoration:underline;font-weight:700;
     font-size:12.5px;padding:0;cursor:pointer;font-family:inherit}
   .ruta-trasbordo{margin:0 14px 14px;padding:11px 13px;border-radius:11px;background:var(--amber-soft);border:1px solid var(--amber)}
-  .ruta-trasbordo b{display:block;font-size:13.5px;color:#7a5b10}
+  .ruta-trasbordo b{display:block;font-size:13.5px;color:var(--alerta)}
   .ruta-trasbordo span{display:block;font-size:12.5px;color:#8a6a10;font-weight:600;margin-top:2px}
   .ruta-cuadros{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:10px 0 14px}
   .ruta-cuadro{border-radius:12px;padding:14px 10px;text-align:center}
@@ -391,6 +393,191 @@
   .ruta-detalle{border-top:1px solid var(--line);padding-top:10px}
   .ruta-detalle div{font-size:13.5px;font-weight:600;padding:7px 0;border-bottom:1px dashed var(--line)}
   .ruta-detalle div:last-child{border:0}
+
+  /* ==================== PIEL GESTIÓN DE FLOTA (v6.0) ====================
+     Misma paleta que el sistema de la oficina: fondo gris claro, tarjetas
+     blancas con sombra suave, gris grafito como color principal, Montserrat.
+     Las variables viejas (--green, --amber, --dark…) se siguen usando en las
+     pantallas internas, por eso acá se les da el valor nuevo. */
+  :root{
+    --acento:#2b3440; --acento-suave:#eceef1; --fondo:#f4f5f7; --tarjeta:#fff;
+    --t1:#1f2328; --t2:#4a5057; --t3:#8a9099; --linea:#e7e9ec;
+    --ok:#1e7a52; --ok-bg:#e9f4ee; --alerta:#8a5b00; --alerta-bg:#fbf2e0;
+    --mal:#9b2c2c; --mal-bg:#fbecec; --info:#1a4f8a; --info-bg:#e9f0f8;
+    --sombra:0 1px 2px rgba(16,24,40,.05),0 4px 14px rgba(16,24,40,.05);
+    --ink:var(--t1); --panel:#fff; --bg:var(--fondo); --line:var(--linea); --muted:var(--t3);
+    --red:var(--mal); --blue:var(--info); --nav-h:66px;
+  }
+  body{font-family:Montserrat,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--fondo);color:var(--t1);font-size:13.5px}
+  button,input,select,textarea{font-family:inherit}
+  /* --- entrada --- */
+  .login-wrap{display:block;min-height:100vh;background:var(--fondo);padding:0}
+  .login-wrap::before{content:"";display:block;height:0}
+  .login-card{max-width:none;border-radius:0;padding:0;box-shadow:none;background:transparent}
+  .login-banda{background:var(--acento);color:#fff;padding:calc(48px + env(safe-area-inset-top)) 24px 66px}
+  .login-banda .brand-badge{background:#fff;color:var(--acento);width:54px;height:54px;font-size:21px;border-radius:14px;margin-bottom:16px}
+  .login-banda img.brand-logo{width:54px;height:54px;border-radius:14px;object-fit:cover;background:#fff;margin-bottom:16px;display:block}
+  .login-banda h1{font-size:24px;font-weight:800;letter-spacing:-.4px;line-height:1.15}
+  .login-banda p{font-size:13px;opacity:.75;margin-top:6px;font-weight:500}
+  .login-caja{background:#fff;margin:-40px 16px 0;border-radius:14px;box-shadow:var(--sombra);padding:18px 18px 20px;max-width:440px}
+  @media(min-width:520px){.login-caja{margin-left:auto;margin-right:auto}}
+  .login-card label{font-size:10.5px;letter-spacing:.6px;color:var(--t3);margin:14px 0 6px}
+  .login-card input{border:1.5px solid var(--linea);border-radius:10px;padding:12px 13px;font-size:16px}
+  .login-card input:focus{border-color:var(--acento)}
+  .btn{background:var(--acento);border-radius:10px;font-weight:700;padding:13px;margin-top:18px}
+  .btn:hover{background:#1f262f}
+  .btn.sec{background:#fff;color:var(--t2);border:1px solid var(--linea);font-size:13.5px;padding:11px}
+  .btn.sec:hover{background:var(--fondo)}
+  .login-hint{margin:14px 16px 24px;background:#fff;border:0;border-radius:12px;box-shadow:var(--sombra);padding:12px 14px;font-size:12px;color:var(--t2);line-height:1.5;max-width:440px}
+  @media(min-width:520px){.login-hint{margin-left:auto;margin-right:auto}}
+  .login-hint b{color:var(--t1)}
+  .login-error{margin-top:12px;background:var(--mal-bg);color:var(--mal);border-radius:9px;padding:9px 12px;font-size:13px;font-weight:600}
+  /* --- barra de arriba --- */
+  .topbar{background:#fff;color:var(--t1);border-bottom:1px solid var(--linea);padding:10px 14px;padding-top:calc(10px + env(safe-area-inset-top))}
+  .topbar .mini-badge{background:var(--acento);border-radius:10px;width:38px;height:38px}
+  .topbar .who{color:var(--t3)}
+  .topbar .who b{color:var(--t1);font-size:14px;font-weight:700}
+  .topbar .who .emp{color:var(--t3);font-size:10.5px;text-transform:uppercase;letter-spacing:.5px;font-weight:600}
+  .ib{width:36px;height:36px;border-radius:9px;border:1px solid var(--linea);background:#fff;display:flex;align-items:center;justify-content:center;color:var(--t2);cursor:pointer;padding:0;flex:none}
+  .ib svg{width:18px;height:18px}
+  .ib:active{background:var(--fondo)}
+  .ib.tel{border-color:#f0d3d3;background:var(--mal-bg);color:var(--mal)}
+  .ib.gira svg{animation:girar 1s linear infinite}
+  @keyframes girar{to{transform:rotate(360deg)}}
+  .back-row{padding:12px 14px 0}
+  .back-btn{border:1px solid var(--linea);border-radius:9px;color:var(--t2);font-weight:700;display:inline-flex;align-items:center;gap:6px;padding:8px 12px}
+  .back-btn svg{width:16px;height:16px}
+  .screen-title{font-size:15px;font-weight:800}
+  .container{padding:12px 14px calc(var(--nav-h) + 96px)}
+  .offline-band{font-weight:600}
+  /* --- barra de abajo --- */
+  .bottomnav{background:#fff;border-top:1px solid var(--linea);box-shadow:none;padding:0 6px env(safe-area-inset-bottom)}
+  .bottomnav button{color:var(--t3);font-size:10.5px;gap:4px}
+  .bottomnav button svg{width:22px;height:22px}
+  .bottomnav button.act{color:var(--acento)}
+  .nav-qr button{background:var(--acento);color:#fff;border:4px solid var(--fondo);box-shadow:0 6px 16px rgba(43,52,64,.35);width:54px;height:54px;top:-22px}
+  .nav-qr button svg{width:24px;height:24px}
+  .nav-qr small{color:var(--t3);bottom:8px}
+  /* --- inicio --- */
+  .inicio{padding:14px 14px 0}
+  .saludo{display:flex;justify-content:space-between;align-items:baseline;margin:2px 2px 12px;gap:10px}
+  .saludo h2{font-size:18px;font-weight:800;letter-spacing:-.3px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .saludo span{font-size:11.5px;color:var(--t3);font-weight:600;white-space:nowrap}
+  .kpis{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px}
+  .kpi{background:#fff;border-radius:12px;box-shadow:var(--sombra);padding:11px 12px;min-width:0}
+  .kpi .et{font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--t3);font-weight:600}
+  .kpi .nu{font-size:15px;font-weight:700;margin-top:4px;letter-spacing:-.3px;line-height:1.2;word-break:break-word}
+  .kpi .nu.ok{color:var(--ok)} .kpi .nu.al{color:var(--alerta)} .kpi .nu.mal{color:var(--mal)}
+  .rotulo{font-size:10.5px;text-transform:uppercase;letter-spacing:.9px;color:var(--t3);font-weight:700;margin:14px 2px 8px}
+  .grilla{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .tarjeta{background:#fff;border:0;border-radius:12px;box-shadow:var(--sombra);padding:13px 12px 12px;display:flex;flex-direction:column;gap:8px;min-height:104px;text-align:left;cursor:pointer;width:100%;font-family:inherit}
+  .tarjeta:active{transform:scale(.98)}
+  .tarjeta .ic{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;background:var(--acento-suave);color:var(--acento);margin:0;font-size:inherit}
+  .tarjeta .ic svg{width:19px;height:19px}
+  .tarjeta .ic.mal{background:var(--mal-bg);color:var(--mal)} .tarjeta .ic.ok{background:var(--ok-bg);color:var(--ok)}
+  .tarjeta .ic.info{background:var(--info-bg);color:var(--info)} .tarjeta .ic.al{background:var(--alerta-bg);color:var(--alerta)}
+  .tarjeta b{font-size:13.5px;font-weight:700;line-height:1.2;color:var(--t1)}
+  .tarjeta span{font-size:11px;color:var(--t3);line-height:1.35;display:block}
+  .aviso{background:#fff;border:0;border-left:4px solid var(--info);border-radius:12px;box-shadow:var(--sombra);padding:11px 12px;display:flex;gap:10px;align-items:center;margin-bottom:8px;width:100%;text-align:left;cursor:pointer;font-family:inherit}
+  .aviso.al{border-left-color:var(--alerta)} .aviso.ok{border-left-color:var(--ok)} .aviso.mal{border-left-color:var(--mal)}
+  .aviso > div{flex:1;min-width:0}
+  .aviso b{font-size:13px;display:block;color:var(--t1)} .aviso span{font-size:11.5px;color:var(--t3);display:block;margin-top:2px}
+  .aviso .chip-ir{font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:999px;background:var(--info-bg);color:var(--info);white-space:nowrap;flex:none}
+  .aviso.al .chip-ir{background:var(--alerta-bg);color:var(--alerta)} .aviso.ok .chip-ir{background:var(--ok-bg);color:var(--ok)} .aviso.mal .chip-ir{background:var(--mal-bg);color:var(--mal)}
+  /* --- tarjetas y formularios de las pantallas internas --- */
+  .card{border:0;box-shadow:var(--sombra);border-radius:12px;padding:14px}
+  .card h2{font-size:11px;letter-spacing:.7px;color:var(--t3);font-weight:700;margin-bottom:10px}
+  .card h2::before{display:none}
+  .field label{font-size:11.5px;font-weight:600;color:var(--t2)}
+  .field input,.field select,.field textarea{border:1.5px solid var(--linea);border-radius:9px;font-size:14px}
+  .field input:focus,.field select:focus,.field textarea:focus{border-color:var(--acento)}
+  .field input[readonly]{background:var(--fondo);color:var(--t3)}
+  .kms-total{background:var(--acento);color:#fff}
+  .kms-total small{color:rgba(255,255,255,.7)}
+  .toggle button{border-color:var(--linea);color:var(--t3);border-radius:9px}
+  .toggle button.on-ok{border-color:var(--ok);background:var(--ok-bg);color:var(--ok)}
+  .toggle button.on-nov{border-color:var(--mal);background:var(--mal-bg);color:var(--mal)}
+  .chk{border-color:var(--linea);border-radius:9px}
+  .chk input{accent-color:var(--mal)}
+  .chk.marked{border-color:var(--mal);background:var(--mal-bg)}
+  .sector label{color:var(--t2);font-size:11.5px;letter-spacing:.3px}
+  .sector textarea{border-color:var(--linea);background:#fff}
+  .sector textarea:focus{border-color:var(--acento)}
+  .adj-btn{border:1.5px dashed #c9ced4;background:#fff;color:var(--t2);border-radius:9px}
+  .adj-btn:active{background:var(--fondo)}
+  .adj-item .ico{background:var(--acento-suave)}
+  .adj-est.ok{color:var(--ok)} .adj-est.sub{color:var(--info)}
+  .savebar{border-top:1px solid var(--linea);box-shadow:none}
+  .toast{background:var(--acento);border-radius:10px}
+  .toast.err{background:var(--mal)}
+  .hist-item{border:0;box-shadow:var(--sombra);border-radius:12px;background:#fff}
+  .hist-item b{color:var(--t1)}
+  .tag.ok{background:var(--ok-bg);color:var(--ok)} .tag.nov{background:var(--mal-bg);color:var(--mal)}
+  .tiles{gap:10px}
+  .tile{border:0;box-shadow:var(--sombra);border-radius:12px}
+  .tile .ic{background:var(--acento-suave)}
+  .ic.g{background:var(--ok-bg)} .ic.a{background:var(--alerta-bg)} .ic.r{background:var(--mal-bg)} .ic.b{background:var(--info-bg)}
+  .empty{color:var(--t3)}
+  .sync-note{color:var(--t3)}
+  /* vencimientos / unidad */
+  .venc-card{border:0;box-shadow:var(--sombra);border-radius:12px;background:#fff}
+  .venc-chip.ok{background:var(--ok-bg);color:var(--ok)} .venc-chip.pronto{background:var(--alerta-bg);color:var(--alerta)}
+  .venc-chip.vencido{background:var(--mal-bg);color:var(--mal)} .venc-chip.na{background:var(--acento-suave);color:var(--t3)}
+  .unidad-head{background:var(--acento);border-radius:12px}
+  .unidad-head b{color:#fff} .unidad-head span{color:rgba(255,255,255,.72)}
+  .veredicto.ok{background:var(--ok-bg);color:var(--ok);border-color:var(--ok)}
+  .veredicto.mal{background:var(--mal-bg);color:var(--mal);border-color:var(--mal)}
+  .veredicto.duda{background:var(--alerta-bg);color:var(--alerta);border-color:#e3c37a}
+  /* listas, pasos, chips */
+  .seccion{margin:0 0 14px}
+  .seccion .cabecera h3{font-size:14px}
+  .seccion .cabecera a{color:var(--acento)}
+  .item-lista{border:0;box-shadow:var(--sombra);border-radius:12px}
+  .item-lista .det{color:var(--t3)}
+  .paso .pto{background:#e3e6ea;color:var(--t3)}
+  .paso.hecho .pto{background:var(--ok);color:#fff}
+  .paso.actual .pto{background:var(--acento);color:#fff;box-shadow:0 0 0 4px var(--acento-suave)}
+  .paso::before{background:#e3e6ea} .paso.hecho::before,.paso.actual::before{background:var(--ok)}
+  .coment{background:var(--fondo)}
+  .chip-est.pendiente,.chip-est.solicitado{background:var(--alerta-bg);color:var(--alerta)}
+  .chip-est.aprobado,.chip-est.en_progreso,.chip-est.en_proceso,.chip-est.en_curso,.chip-est.preparado,.chip-est.enviado{background:var(--info-bg);color:var(--info)}
+  .chip-est.entregado,.chip-est.completado,.chip-est.hecho,.chip-est.recibido{background:var(--ok-bg);color:var(--ok)}
+  .chip-est.rechazado,.chip-est.cancelado{background:var(--mal-bg);color:var(--mal)}
+  .chip-est.programado{background:var(--acento-suave);color:var(--t2)}
+  .insumo{border-color:var(--linea);border-radius:10px}
+  .insumo .cont button{color:var(--acento);border-color:var(--linea)}
+  .insumo .cont button:active{background:var(--acento-suave)}
+  .insumo.con{border-color:var(--acento);background:var(--acento-suave)}
+  /* contactos */
+  .contacto-card.asesor{border-color:var(--acento);background:var(--acento-suave)}
+  .contacto-card.asesor .rol{color:var(--acento)}
+  .contacto-card.emergencia{border-color:var(--mal);background:var(--mal-bg)}
+  .btn-llamar{background:var(--acento)}
+  .contacto-card.emergencia .btn-llamar{background:var(--mal)}
+  /* hoja de ruta */
+  .ruta-pantalla{background:var(--fondo)}
+  .ruta-banda{background:var(--alerta-bg);color:var(--alerta)}
+  .ruta-riel i{background:var(--ok)}
+  .ruta-mapa-vacio{background:var(--fondo);color:var(--t3)}
+  .ruta-parada-cab .letra{background:var(--acento-suave);color:var(--acento)}
+  .ruta-ir{background:var(--info)}
+  .ruta-btn{background:var(--acento)}
+  .ruta-btn.gris{color:var(--t2);border-color:var(--linea)}
+  .ruta-crono{background:var(--ok-bg);border-color:var(--ok)} .ruta-crono .num,.ruta-crono .txt{color:var(--ok)}
+  .ruta-crono.vencido{background:var(--mal-bg);border-color:var(--mal)}
+  .ruta-chip{background:var(--alerta-bg);color:var(--alerta)}
+  .ruta-par .si{background:var(--ok-bg);border-color:var(--ok);color:var(--ok)}
+  .ruta-par .no{background:var(--mal-bg);border-color:var(--mal);color:var(--mal)}
+  .ruta-marca.ok{background:var(--ok-bg);color:var(--ok)} .ruta-marca.mal{background:var(--mal-bg);color:var(--mal)}
+  .ruta-trasbordo{background:var(--alerta-bg);border-color:#e3c37a} .ruta-trasbordo b,.ruta-trasbordo span{color:var(--alerta)}
+  .ruta-cuadro.v{background:var(--ok-bg);color:var(--ok)} .ruta-cuadro.r{background:var(--mal-bg);color:var(--mal)}
+  .cred-btn{border-color:var(--acento);color:var(--acento)}
+  .cred-aviso.ok{background:var(--ok-bg);border-color:#bfe0cd;color:var(--ok)}
+  .cred-aviso.ya{background:var(--info-bg);border-color:#c3d5ea;color:var(--info)}
+  .cred-aviso.no{background:var(--mal-bg);border-color:#efc8c8;color:var(--mal)}
+  .escaner-marco{border-radius:12px}
+  .qr-item{border:0;box-shadow:var(--sombra)}
+  .contactos-panel h3{font-weight:800}
 </style>
 </head>
 <body>
@@ -398,7 +585,7 @@
 <script type="text/babel">
 const {useState, useEffect, useMemo, useRef} = React;
 /* ============================================================
-   CheckFlota v5.3 — app móvil del conductor, conectada al panel.
+   CheckFlota v6.0 (16-09-2026) — app móvil del conductor, con la piel de Gestión de Flota.
    NUEVO: la Hoja de ruta es un MAPA (Leaflet + OpenStreetMap, gratis y sin
    claves) con las paradas del día, el recorrido y la unidad en vivo.
    FlotaGestión (Operación B). Lee conductores, unidades y
@@ -408,6 +595,7 @@ const {useState, useEffect, useMemo, useRef} = React;
    por ?api=).
    ============================================================ */
 const PREFIJO = "CFB:";
+const APP_VERSION = "v6.0 · 16-09-2026";
 const _mem = {};
 const almacen = {
   get(k){ const K = PREFIJO + k; try { return localStorage.getItem(K); } catch(e){ return Object.prototype.hasOwnProperty.call(_mem,K) ? _mem[K] : null; } },
@@ -426,7 +614,7 @@ const mezclar = (hex, amt) => {   // amt -1 (negro) .. 1 (blanco)
   const r = canal((n>>16)&255), g = canal((n>>8)&255), b = canal(n&255);
   return "#" + ((1<<24) + (r<<16) + (g<<8) + b).toString(16).slice(1);
 };
-const MARCA_DEF = { nombre:"CheckFlota", colorPrimario:"#1f7a4d", colorAcento:"#f5b52e", logo:"" };
+const MARCA_DEF = { nombre:"Gestión de Flota", colorPrimario:"#2b3440", colorAcento:"#b9791a", logo:"" };
 const marcaLocal = () => { try { return JSON.parse(almacen.get("MARCA_LOCAL")||"{}"); } catch(e){ return {}; } };
 const marcaFinal = (datos) => {
   const hoja = (datos && datos.marca) || {};
@@ -440,24 +628,55 @@ const marcaFinal = (datos) => {
 };
 const aplicarMarca = (m) => {
   const r = document.documentElement.style;
+  /* piel Gestión de Flota: el color principal manda sobre todo lo "grafito" */
+  r.setProperty("--acento", m.colorPrimario);
+  r.setProperty("--acento-suave", mezclar(m.colorPrimario, 0.9));
   r.setProperty("--green", m.colorPrimario);
   r.setProperty("--green-dark", mezclar(m.colorPrimario, -0.28));
   r.setProperty("--amber", m.colorAcento);
-  r.setProperty("--amber-soft", mezclar(m.colorAcento, 0.85));
-  r.setProperty("--dark", mezclar(m.colorPrimario, -0.78));
-  r.setProperty("--dark2", mezclar(m.colorPrimario, -0.66));
-  r.setProperty("--hero2", mezclar(m.colorPrimario, -0.55));
-  r.setProperty("--hero3", mezclar(m.colorPrimario, -0.35));
-  r.setProperty("--sobre-oscuro", mezclar(m.colorPrimario, 0.55));
-  document.title = m.nombre + " · App del Conductor";
+  r.setProperty("--amber-soft", mezclar(m.colorAcento, 0.86));
+  r.setProperty("--dark", m.colorPrimario);
+  r.setProperty("--dark2", mezclar(m.colorPrimario, -0.2));
+  r.setProperty("--hero2", mezclar(m.colorPrimario, -0.1));
+  r.setProperty("--hero3", mezclar(m.colorPrimario, 0.1));
+  r.setProperty("--sobre-oscuro", "rgba(255,255,255,.72)");
+  document.title = m.nombre + " · App del conductor";
 };
+
+/* ---------- íconos de línea (mismo estilo que Gestión de Flota) ---------- */
+const ICONOS = {
+  home:'<path d="M3 11l9-8 9 8v9a2 2 0 0 1-2 2h-4v-6H9v6H5a2 2 0 0 1-2-2z"/>',
+  check:'<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 9h8M8 13h8M8 17h5"/>',
+  qr:'<rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 14h3v3M21 14v7h-7"/>',
+  tool:'<path d="M14.7 6.3a4 4 0 0 0 4.9 4.9l3.2 3.2a2 2 0 0 1-2.8 2.8l-3.2-3.2a4 4 0 0 0-4.9-4.9L9 6.3 6.3 9z"/><path d="M3 21l6-6"/>',
+  box:'<path d="M21 8l-9-5-9 5v8l9 5 9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/>',
+  alert:'<path d="M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/>',
+  cam:'<path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>',
+  map:'<path d="M1 6v16l7-4 8 4 7-4V2l-7 4-8-4z"/><path d="M8 2v16M16 6v16"/>',
+  id:'<rect x="2" y="4" width="20" height="16" rx="2"/><circle cx="8" cy="11" r="2.5"/><path d="M14 9h5M14 13h5M4.5 18c.5-2 2-3 3.5-3s3 1 3.5 3"/>',
+  cal:'<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>',
+  send:'<path d="M22 2L11 13M22 2l-7 20-4-9-9-4z"/>',
+  book:'<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>',
+  phone:'<path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.6a2 2 0 0 1-.5 2.1L8.1 9.7a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.8.3 1.7.5 2.6.7a2 2 0 0 1 1.7 2z"/>',
+  ref:'<path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.5 9a9 9 0 0 1 14.9-3.4L23 10M1 14l4.6 4.4A9 9 0 0 0 20.5 15"/>',
+  gear:'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>',
+  out:'<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>',
+  back:'<path d="M15 18l-6-6 6-6"/>',
+  wifi:'<path d="M1.4 9a16 16 0 0 1 21.2 0M5 12.5a11 11 0 0 1 14 0M8.5 16a6 6 0 0 1 7 0M12 20h.01"/>',
+  drop:'<path d="M12 2.7s-6.5 7-6.5 11.3a6.5 6.5 0 0 0 13 0C18.5 9.7 12 2.7 12 2.7z"/>',
+};
+function Ico({n, s}){
+  return <svg width={s||20} height={s||20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+    strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" dangerouslySetInnerHTML={{__html: ICONOS[n] || ""}}/>;
+}
 /* Insignia: logo de la empresa o iniciales */
 function Insignia({marca, size}){
   const s = size || 46;
   if (marca && marca.logo)
     return <img src={marca.logo} alt="" style={{width:s,height:s,borderRadius:Math.round(s*0.22),objectFit:"cover",flexShrink:0,background:"#fff"}}/>;
-  const palabras = String((marca && marca.nombre) || "CF").replace(/[^A-Za-zÁÉÍÓÚÑáéíóúñ0-9 ]/g,"").trim().split(/\s+/).filter(Boolean);
-  const ini = (palabras.length >= 2 ? palabras.map(p=>p[0]).join("").slice(0,2) : (palabras[0]||"CF").slice(0,2)).toUpperCase();
+  const palabras = String((marca && marca.nombre) || "GF").replace(/[^A-Za-zÁÉÍÓÚÑáéíóúñ0-9 ]/g,"").trim().split(/\s+/)
+    .filter(p => p && !/^(de|del|la|el|los|las|y|e)$/i.test(p));
+  const ini = (palabras.length >= 2 ? palabras.map(p=>p[0]).join("").slice(0,2) : (palabras[0]||"GF").slice(0,2)).toUpperCase();
   return <div className="brand-badge" style={{width:s,height:s,fontSize:Math.round(s*0.42)}}>{ini}</div>;
 }
 const mismoId = (a,b) => String(a) === String(b);
@@ -490,7 +709,7 @@ aplicarMarca(marcaFinal(null));
    URL FIJA DEL SCRIPT — ya viene cargada en el archivo.
    El conductor no configura nada: abre la app y listo.
    ============================================================ */
-const API_URL_FIJA = "https://script.google.com/macros/s/AKfycbxZ7-_1MOP785xB5UUlNQ_8tKFubTW8c_0IWrPoJct-NiZzeEp1ik3NHdKa-7bqdS_H/exec";
+const API_URL_FIJA = "https://script.google.com/macros/s/AKfycbx4yj4OI4_EDhtglhgoOMDOrfqRBUZw_lQliBezHfAerHkWeYU65qd1ahLuno7cLGMq/exec";
 const params = new URLSearchParams(location.search);
 if (params.get("api")) almacen.set("API_URL", params.get("api").trim());
 const API_URL = /^https:\/\/script\.google\.com\//.test(API_URL_FIJA)
@@ -779,10 +998,12 @@ function Login({marca, demo, onLogin}){
   return (
     <div className="login-wrap">
       <div className="login-card">
-        <div className="brand">
-          <Insignia marca={marca}/>
-          <h1>{(marca && marca.nombre) || "CheckFlota"}<small>App del Conductor</small></h1>
+        <div className="login-banda">
+          {marca && marca.logo ? <img className="brand-logo" src={marca.logo} alt=""/> : <Insignia marca={marca}/>}
+          <h1>{(marca && marca.nombre) || "Gestión de Flota"}</h1>
+          <p>App del conductor</p>
         </div>
+        <div className="login-caja">
         <label>DNI</label>
         <input inputMode="numeric" value={dni} onChange={e=>setDni(e.target.value)} placeholder="Sin puntos" autoComplete="username"/>
         <label>PIN</label>
@@ -803,12 +1024,14 @@ function Login({marca, demo, onLogin}){
             }
           }}>Probar la conexión</button>
           {probando && <p style={{marginTop:12,fontSize:13,lineHeight:1.5,padding:"10px 12px",borderRadius:9,
-            background:/✔/.test(probando)?"#e7f4ec":"var(--amber-soft)",
-            color:/✔/.test(probando)?"var(--green-dark)":"#7a5b10",fontWeight:600}}>{probando}</p>}
+            background:/✔/.test(probando)?"var(--ok-bg)":"var(--alerta-bg)",
+            color:/✔/.test(probando)?"var(--ok)":"var(--alerta)",fontWeight:600}}>{probando}</p>}
+        </div>
         <div className="login-hint">
           Ingresá con tu <b>DNI</b>. Si nunca te asignaron un PIN, usá los <b>últimos 4 números de tu DNI</b>.
           Solo vas a ver <b>tus unidades y tus novedades</b>.
           {demo && <span><br/><b>Modo demo:</b> DNI 22333444 · PIN 3444</span>}
+          <div style={{marginTop:8,fontSize:10.5,color:"var(--t3)",fontWeight:600}}>App del conductor {APP_VERSION}</div>
         </div>
       </div>
     </div>
@@ -1353,8 +1576,8 @@ function Pedidos({user, datos, empresaId, empresaNombre, demo, onSaved}){
           ))}
         </div>
         {carrito.length > 0 && (
-          <div style={{marginTop:14,border:"2px solid var(--green)",borderRadius:12,padding:"12px 12px 6px",background:"#f2f8f4"}}>
-            <div style={{fontSize:12,fontWeight:800,letterSpacing:".5px",color:"var(--green-dark)",marginBottom:8}}>
+          <div style={{marginTop:14,border:"2px solid var(--ok)",borderRadius:12,padding:"12px 12px 6px",background:"var(--ok-bg)"}}>
+            <div style={{fontSize:12,fontWeight:800,letterSpacing:".5px",color:"var(--ok)",marginBottom:8}}>
               🧺 TU PEDIDO ({carrito.reduce((s,x)=>s+x.cantidad,0)} artículo(s)) — ajustá las cantidades con − y +
             </div>
             {carrito.map(x=>(
@@ -1449,7 +1672,7 @@ function Seguimiento({user, datos}){
         {terminadas > 0 &&
           <label style={{display:"flex",alignItems:"center",gap:8,fontSize:13,color:"var(--muted)",marginBottom:10,cursor:"pointer"}}>
             <input type="checkbox" checked={verTerminadas} onChange={e=>setVerTerminadas(e.target.checked)}
-              style={{width:17,height:17,accentColor:"var(--green)"}}/>
+              style={{width:17,height:17,accentColor:"var(--acento)"}}/>
             Ver también las terminadas ({terminadas})
           </label>}
         {mias.length === 0 && <div className="empty">{todas.length === 0
@@ -1546,7 +1769,7 @@ function Diagramas({datos, user, demo}){
           {proximos.map((d,i)=>{
             const est = estadoDe(d);
             return (
-            <div className="item-lista" key={claveDe(d)+"-"+i} style={esHoyD(d.fecha) ? {borderColor:"var(--amber)", background:"var(--amber-soft)"} : null}>
+            <div className="item-lista" key={claveDe(d)+"-"+i} style={esHoyD(d.fecha) ? {borderColor:"var(--alerta)", background:"var(--alerta-bg)"} : null}>
               <div className="arriba">
                 <b>{iconoTarea(d.tarea)} {d.tarea || "Tarea"} · Interno {d.interno||"—"}</b>
                 <span className={"chip-est " + est}>{est === "en_curso" ? "en curso" : est === "hecho" ? "hecho" : "pendiente"}</span>
@@ -1560,7 +1783,7 @@ function Diagramas({datos, user, demo}){
                   ▶ Iniciar tarea
                 </button>}
               {est === "en_curso" &&
-                <button className="btn" style={{marginTop:10,background:"var(--green-dark)"}} disabled={busy} onClick={()=>marcar(d,"fin")}>
+                <button className="btn" style={{marginTop:10,background:"var(--ok)"}} disabled={busy} onClick={()=>marcar(d,"fin")}>
                   ✔ Finalizar tarea
                 </button>}
             </div>
@@ -2009,110 +2232,77 @@ function Ajustes({marca, onCambio, onVolver}){
 }
 /* ================= HOME (estilo app de banco) ================= */
 function Home({user, empresaNombre, datos, colaN, irA, abrirContactos}){
-  const vehiculos = datos.vehiculos || [];
   const pref = "[" + String(user.nombre||"").toUpperCase().trim() + "]";
   const enProceso = (datos.mantenimiento||[]).filter(m =>
     String(m.descripcion||"").toUpperCase().trim().indexOf(pref) === 0 &&
     pasoDeEstado(m.estado) < 2).length;
   const diagHoy = (datos.diagramas||[]).filter(d => String(d.fecha||"") === hoy() &&
     estadoDiagramaNorm(d.estado) !== "hecho");
-  const proxDiag = (datos.diagramas||[])
-    .filter(d => String(d.fecha||"") >= hoy() && estadoDiagramaNorm(d.estado) !== "hecho")
-    .sort((a,b)=>String(a.fecha||"").localeCompare(String(b.fecha||"")))
-    .slice(0,3);
+  const pedidosAviso = (datos.pedidos||[]).filter(p => /prepar|envi/.test(String(p.estado||"").toLowerCase()) && !/recib/.test(String(p.estado||"").toLowerCase()));
+  const enviados = pedidosAviso.filter(p=>/envi/.test(String(p.estado||"").toLowerCase())).length;
+  const dLic = diasHasta(user.vencLicencia);
+  const licTxt = !user.vencLicencia ? "—" : (dLic === null ? "—" : (dLic < 0 ? "Vencida" : (dLic <= 30 ? "Vence en " + dLic + " d" : "Vigente")));
+  const licCls = !user.vencLicencia || dLic === null ? "" : (dLic < 0 ? "mal" : (dLic <= 30 ? "al" : "ok"));
+  const fechaTxt = new Date().toLocaleDateString("es-AR",{weekday:"short",day:"numeric",month:"short"}).replace(/\./g,"");
+  const nombreCorto = String(user.nombre||"").split(" ")[0] || user.nombre;
+  const T = ({v, ic, cls, t, d}) => (
+    <button className="tarjeta" onClick={()=>irA(v)}>
+      <div className={"ic" + (cls ? " " + cls : "")}><Ico n={ic}/></div>
+      <div><b>{t}</b><span>{d}</span></div>
+    </button>
+  );
   return (
-    <React.Fragment>
-      <div className="hero3">
-        <div className="saludo">Hola, {String(user.nombre||"").split(" ")[0] || user.nombre} 👋</div>
-        <div className="sub">{empresaNombre} · App del Conductor</div>
+    <div className="inicio">
+      <div className="saludo"><h2>Hola, {nombreCorto}</h2><span>{fechaTxt}</span></div>
+      <div className="kpis">
+        <div className="kpi"><div className="et">Tu licencia</div><div className={"nu " + licCls}>{licTxt}</div></div>
+        <div className="kpi"><div className="et">En taller</div><div className={"nu" + (enProceso ? " al" : "")}>{enProceso ? enProceso + (enProceso === 1 ? " novedad" : " novedades") : "Nada"}</div></div>
+        <div className="kpi"><div className="et">Hoy</div><div className="nu">{diagHoy.length ? diagHoy.map(d=>String(d.tarea||"").split(" ")[0]).join(" · ") : "Sin tareas"}</div></div>
       </div>
-      <div className="tarjeta-principal">
-        <div className="fila-info">
-          <div className="dato"><span>Tu licencia</span>{user.vencLicencia ? <ChipVenc fecha={user.vencLicencia} mini/> : <b>—</b>}</div>
-          <div className="dato"><span>En taller</span><b>{enProceso ? enProceso + " novedad(es)" : "—"}</b></div>
-          <div className="dato"><span>Hoy</span><b>{diagHoy.length ? diagHoy.map(d=>iconoTarea(d.tarea)).join(" ") : "—"}</b></div>
-        </div>
-        <div className="acciones">
-          <button className="accion" onClick={()=>irA("novedad")}><span className="ico">⚠️</span><b>Reportar novedad</b></button>
-          <button className="accion" onClick={()=>irA("media")}><span className="ico">🚐</span><b>Fotos de la unidad</b></button>
-          <button className="accion" onClick={()=>irA("pedidos")}><span className="ico">📦</span><b>Pedidos</b></button>
-          <button className="accion" onClick={()=>irA("venc")}><span className="ico">🪪</span><b>Documentación</b></button>
-        </div>
-      </div>
-      <div className="banda-sos" onClick={abrirContactos}>
-        <span className="ic">🚨</span>
-        <div style={{flex:1}}>
-          <b>¿Problema en ruta? Tocá acá</b>
-          <span>Llamá al asesor de servicio o a contingencias con un toque.</span>
-        </div>
-        <span style={{fontSize:20,color:"var(--red)"}}>📞</span>
-      </div>
+
+      {(colaN > 0 || pedidosAviso.length > 0 || enProceso > 0 || diagHoy.length > 0) && <div className="rotulo">Avisos</div>}
       {colaN > 0 &&
-        <div className="seccion">
-          <div className="item-lista" style={{borderColor:"var(--amber)",background:"var(--amber-soft)",cursor:"pointer"}} onClick={()=>irA("pendientes")}>
-            <b>📴 {colaN} envío(s) esperando señal</b>
-            <div className="det">Quedaron guardados en el teléfono. Tocá para ver o descargar.</div>
-          </div>
-        </div>}
-      {(()=>{
-        const avisos = (datos.pedidos||[]).filter(p => /prepar|envi/.test(String(p.estado||"").toLowerCase()) && !/recib/.test(String(p.estado||"").toLowerCase()));
-        if (!avisos.length) return null;
-        const enviados = avisos.filter(p=>/envi/.test(String(p.estado||"").toLowerCase())).length;
-        return (
-          <div className="seccion">
-            <div className="item-lista" style={{borderColor:"var(--green)",background:"#e7f4ec",cursor:"pointer"}} onClick={()=>irA("pedidos")}>
-              <b>📦 {enviados ? "¡Tu pedido está en camino!" : "Tu pedido está preparado"}</b>
-              <div className="det">{enviados ? "Cuando lo recibas, confirmalo desde Pedidos." : "El pañol ya lo armó. Tocá para ver los detalles."}</div>
-            </div>
-          </div>
-        );
-      })()}
-      <div className="seccion">
-        <div className="cabecera"><h3>Traslado de personal</h3><a onClick={()=>irA("ruta")}>Abrir →</a></div>
-        <div className="item-lista" style={{cursor:"pointer",borderColor:"var(--green)",background:"#e7f4ec"}} onClick={()=>irA("ruta")}>
-          <b>🗺️ Hoja de ruta de hoy</b>
-          <div className="det">Las paradas en orden y quién sube en cada una. Marcás si subió o no estaba, y la hora la pone el sistema.</div>
-        </div>
+        <button className="aviso al" onClick={()=>irA("pendientes")}>
+          <div><b>{colaN} envío(s) esperando señal</b><span>Quedaron guardados en el teléfono. Tocá para ver o descargar.</span></div>
+          <span className="chip-ir">Ver</span>
+        </button>}
+      {pedidosAviso.length > 0 &&
+        <button className="aviso ok" onClick={()=>irA("pedidos")}>
+          <div><b>{enviados ? "Tu pedido está en camino" : "Tu pedido está preparado"}</b>
+            <span>{enviados ? "Cuando lo recibas, confirmalo desde Pedidos." : "El pañol ya lo armó. Tocá para ver los detalles."}</span></div>
+          <span className="chip-ir">Pedidos</span>
+        </button>}
+      {enProceso > 0 &&
+        <button className="aviso" onClick={()=>irA("seguimiento")}>
+          <div><b>{enProceso} novedad(es) en el taller</b><span>Tocá para ver el avance y los comentarios del asesor.</span></div>
+          <span className="chip-ir">Taller</span>
+        </button>}
+      {diagHoy.length > 0 &&
+        <button className="aviso al" onClick={()=>irA("diagramas")}>
+          <div><b>Hoy: {diagHoy.map(d => d.tarea + (d.interno ? " · " + d.interno : "")).join(", ")}</b>
+            <span>Tareas programadas para hoy. Tocá para marcarlas.</span></div>
+          <span className="chip-ir">Diagramas</span>
+        </button>}
+
+      <div className="rotulo">Qué querés hacer</div>
+      <div className="grilla">
+        <T v="novedad" ic="alert" cls="mal" t="Reportar novedad" d="Algo anda mal en la unidad: contalo al taller."/>
+        <T v="media" ic="cam" t="Fotos de la unidad" d="Cómo está el coche, por dentro y por fuera."/>
+        <T v="ruta" ic="map" cls="ok" t="Hoja de ruta de hoy" d="Paradas en orden y quién sube en cada una."/>
+        <T v="check" ic="check" t="Check del viaje" d="Planilla completa con kilómetros e ítems."/>
+        <T v="pedidos" ic="box" cls="info" t="Pedidos" d="Pedile insumos y repuestos al pañol."/>
+        <T v="venc" ic="id" t="Documentación" d="VTV, seguro y vencimientos de la unidad."/>
+        <T v="seguimiento" ic="tool" cls="al" t="Seguimiento del taller" d="En qué anda cada novedad que reportaste."/>
+        <T v="diagramas" ic="cal" t="Diagramas" d="Lavado y gasoil programados."/>
+        <T v="historial" ic="send" t="Mis envíos" d="Todo lo que mandaste desde este teléfono."/>
+        <T v="biblioteca" ic="book" t="Biblioteca" d="Manuales e instructivos."/>
       </div>
-      <div className="seccion">
-        <div className="cabecera"><h3>Seguimiento del taller</h3><a onClick={()=>irA("seguimiento")}>Ver todo →</a></div>
-        {enProceso === 0
-          ? <div className="item-lista"><div className="det">No tenés novedades en curso. Cuando reportes algo, acá seguís su reparación.</div></div>
-          : <div className="item-lista" style={{cursor:"pointer"}} onClick={()=>irA("seguimiento")}>
-              <b>🔧 {enProceso} novedad(es) en el taller</b>
-              <div className="det">Tocá para ver el avance y los comentarios del asesor.</div>
-            </div>}
-      </div>
-      <div className="seccion">
-        <div className="cabecera"><h3>Diagramas · lavado y gasoil</h3><a onClick={()=>irA("diagramas")}>Ver todo →</a></div>
-        {proxDiag.length === 0
-          ? <div className="item-lista"><div className="det">Sin tareas programadas por ahora.</div></div>
-          : proxDiag.map((d,i)=>(
-            <div className="item-lista" key={d.id||i} style={String(d.fecha||"")===hoy() ? {borderColor:"var(--amber)",background:"var(--amber-soft)"} : null}>
-              <div className="arriba">
-                <b>{iconoTarea(d.tarea)} {d.tarea} · Interno {d.interno||"—"}</b>
-                <span style={{color:"var(--muted)",fontSize:12}}>{String(d.fecha||"")===hoy() ? "HOY" : fmtFecha(d.fecha)}{d.hora ? " · "+d.hora : ""}</span>
-              </div>
-            </div>))}
-      </div>
-      <div className="seccion">
-        <div className="cabecera"><h3>Más</h3></div>
-        <div className="tiles">
-          <button className="tile" onClick={()=>irA("check")}>
-            <div className="ic g">📋</div><b>Check del viaje</b>
-            <span>Planilla completa con kilómetros e ítems.</span>
-          </button>
-          <button className="tile" onClick={()=>irA("historial")}>
-            <div className="ic b">🗂</div><b>Mis envíos</b>
-            <span>Todo lo que mandaste desde este teléfono.</span>
-          </button>
-          <button className="tile" onClick={()=>irA("biblioteca")}>
-            <div className="ic g">📚</div><b>Biblioteca</b>
-            <span>Manuales e instructivos de la operación.</span>
-          </button>
-        </div>
-      </div>
-    </React.Fragment>
+      <div className="rotulo" style={{marginTop:16}}>¿Problema en ruta?</div>
+      <button className="aviso mal" onClick={abrirContactos}>
+        <div><b>Llamar al asesor o a contingencias</b><span>Con un toque. También está el botón rojo de arriba, en todas las pantallas.</span></div>
+        <span className="chip-ir">Llamar</span>
+      </button>
+    </div>
   );
 }
 /* ================= HOJA DE RUTA · estilo Uber (v5.3) =========================
@@ -2682,9 +2872,8 @@ function App(){
     return ()=>{ window.removeEventListener("online", alConectar); clearInterval(timer); };
   },[]);
   if (arrancando) return (
-    <div className="login-wrap"><div className="login-card" style={{textAlign:"center"}}>
-      <div className="brand" style={{justifyContent:"center"}}><Insignia marca={marca}/><h1>{marca.nombre}</h1></div>
-      <p style={{marginTop:16,color:"var(--muted)"}}>Entrando…</p>
+    <div className="login-wrap"><div className="login-card">
+      <div className="login-banda"><Insignia marca={marca}/><h1>{marca.nombre}</h1><p>Entrando…</p></div>
     </div></div>
   );
   if (!user || !datos){
@@ -2712,28 +2901,28 @@ function App(){
             <b>{yo.nombre}</b>
           </div>
         </div>
-        <div style={{display:"flex",gap:8}}>
-          <button className="link-btn btn-tel-top" onClick={()=>setVerContactos(true)}>📞</button>
-          <button className="link-btn" onClick={refrescar} style={{background:"var(--green)",borderColor:"var(--green)",color:"#fff",fontWeight:800,fontSize:13,padding:"8px 13px"}}>⟳ Actualizar</button>
-          <button className="link-btn" onClick={()=>setVista("ajustes")}>⚙️</button>
-          <button className="link-btn" onClick={salir}>Salir</button>
+        <div style={{display:"flex",gap:6}}>
+          <button className="ib tel" title="Llamar al asesor o a contingencias" onClick={()=>setVerContactos(true)}><Ico n="phone" s={18}/></button>
+          <button className={"ib" + (cargando ? " gira" : "")} title="Actualizar" onClick={refrescar}><Ico n="ref" s={18}/></button>
+          <button className="ib" title="Personalización" onClick={()=>setVista("ajustes")}><Ico n="gear" s={18}/></button>
+          <button className="ib" title="Salir" onClick={salir}><Ico n="out" s={18}/></button>
         </div>
       </div>
-      {errorCarga && <div className="offline-band" style={{background:"var(--amber-soft)",color:"#7a5b10"}}>
+      {errorCarga && <div className="offline-band" style={{background:"var(--amber-soft)",color:"var(--alerta)"}}>
         📴 {errorCarga}{fechaCache ? " (" + fmtFecha(fechaCache.slice(0,10)) + ")" : ""} <a style={{cursor:"pointer",textDecoration:"underline"}} onClick={refrescar}>Reintentar</a>
       </div>}
-      {modoDemo && <div className="offline-band" style={{background:"var(--amber-soft)",color:"#7a5b10"}}>Modo demo: nada se guarda en la planilla.</div>}
+      {modoDemo && <div className="offline-band" style={{background:"var(--amber-soft)",color:"var(--alerta)"}}>Modo demo: nada se guarda en la planilla.</div>}
       {colaN > 0 && vista !== "pendientes" && vista !== "home" &&
-        <div className="offline-band" style={{background:"var(--amber-soft)",color:"#7a5b10",cursor:"pointer"}} onClick={()=>setVista("pendientes")}>
+        <div className="offline-band" style={{background:"var(--amber-soft)",color:"var(--alerta)",cursor:"pointer"}} onClick={()=>setVista("pendientes")}>
           📴 {colaN} envío(s) guardados esperando señal — tocá para ver
         </div>}
       {verContactos && <Contactos contactos={datos.contactos} onCerrar={()=>setVerContactos(false)}/>}
       {vista !== "home" && vista !== "ruta" &&
         <div className="back-row">
-          <button className="back-btn" onClick={()=>setVista("home")}>← Volver</button>
+          <button className="back-btn" onClick={()=>setVista("home")}><Ico n="back" s={16}/> Volver</button>
           <div className="screen-title">{TITULOS[vista] || ""}</div>
         </div>}
-      <div className={vista === "home" || vista === "ruta" ? "" : "container"} style={vista === "home" ? {paddingBottom:"calc(var(--nav-h) + 30px)"} : null}>
+      <div className={vista === "home" || vista === "ruta" ? "" : "container"} style={vista === "home" ? {paddingBottom:"calc(var(--nav-h) + 40px)"} : null}>
         {cargando && vista !== "home" && <div className="sync-note">Actualizando tus datos…</div>}
         {vista==="home" && <Home user={yo} empresaNombre={empresaNombre} datos={datosEmpresa} colaN={colaN} irA={setVista} abrirContactos={()=>setVerContactos(true)}/>}
         {vista==="check" &&
@@ -2760,14 +2949,14 @@ function App(){
         {vista==="ajustes" && <Ajustes marca={marca} onCambio={()=>setMarcaTick(t=>t+1)} onVolver={()=>setVista("home")}/>}
       </div>
       <div className="bottomnav">
-        <button className={vista==="home"?"act":""} onClick={()=>setVista("home")}><span className="ic">🏠</span>Inicio</button>
-        <button className={vista==="check"?"act":""} onClick={()=>setVista("check")}><span className="ic">📋</span>Check</button>
+        <button className={vista==="home"?"act":""} onClick={()=>setVista("home")}><Ico n="home"/>Inicio</button>
+        <button className={vista==="check"?"act":""} onClick={()=>setVista("check")}><Ico n="check"/>Check</button>
         <div className="nav-qr">
-          <button onClick={()=>setVista("escaner")}>▣</button>
+          <button onClick={()=>setVista("escaner")} title="Escanear QR"><Ico n="qr"/></button>
           <small>QR</small>
         </div>
-        <button className={vista==="seguimiento"?"act":""} onClick={()=>setVista("seguimiento")}><span className="ic">🔧</span>Taller</button>
-        <button className={vista==="pedidos"?"act":""} onClick={()=>setVista("pedidos")}><span className="ic">📦</span>Pedidos</button>
+        <button className={vista==="seguimiento"?"act":""} onClick={()=>setVista("seguimiento")}><Ico n="tool"/>Taller</button>
+        <button className={vista==="pedidos"?"act":""} onClick={()=>setVista("pedidos")}><Ico n="box"/>Pedidos</button>
       </div>
     </React.Fragment>
   );
